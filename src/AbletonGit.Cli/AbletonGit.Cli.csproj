@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\AbletonGit.Infrastructure\AbletonGit.Infrastructure.csproj" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <AssemblyName>abletongit</AssemblyName>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>abletongit</ToolCommandName>
+    <PackageId>AbletonGit.Cli</PackageId>
+    <Version>0.1.0</Version>
+    <Description>Musician-oriented Ableton project Snapshots with semantic metadata and Git LFS.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
