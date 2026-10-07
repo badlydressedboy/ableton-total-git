@@ -75,6 +75,8 @@
           "numoutlets": 4,
           "parameter_enable": 0,
           "keymode": 1,
+          "outputmode": 1,
+          "valuemode": 0,
           "text": "",
           "presentation": 1,
           "presentation_rect": [
@@ -208,7 +210,7 @@
           "patching_rect": [
             8,
             122,
-            880,
+            500,
             20
           ],
           "text": "Select the project you want to Snapshot. Save in Live first.",
@@ -216,7 +218,27 @@
           "presentation_rect": [
             8,
             122,
-            880,
+            500,
+            20
+          ]
+        }
+      },
+      {
+        "box": {
+          "id": "details",
+          "maxclass": "comment",
+          "patching_rect": [
+            520,
+            122,
+            368,
+            20
+          ],
+          "text": "",
+          "presentation": 1,
+          "presentation_rect": [
+            520,
+            122,
+            368,
             20
           ]
         }
@@ -252,6 +274,32 @@
             22
           ],
           "text": "node.script device.js @autostart 1 @defer 1"
+        }
+      },
+      {
+        "box": {
+          "id": "scriptstart",
+          "maxclass": "message",
+          "patching_rect": [
+            280,
+            500,
+            95,
+            22
+          ],
+          "text": "script start"
+        }
+      },
+      {
+        "box": {
+          "id": "runtimeconsole",
+          "maxclass": "newobj",
+          "patching_rect": [
+            380,
+            500,
+            250,
+            22
+          ],
+          "text": "print AbletonGit-runtime"
         }
       },
       {
@@ -511,7 +559,7 @@
           "maxclass": "message",
           "patching_rect": [
             574,
-            434,
+            452,
             100,
             22
           ],
@@ -567,7 +615,7 @@
           "maxclass": "message",
           "patching_rect": [
             717,
-            452,
+            470,
             100,
             22
           ],
@@ -623,7 +671,7 @@
           "maxclass": "message",
           "patching_rect": [
             860,
-            470,
+            488,
             100,
             22
           ],
@@ -679,7 +727,7 @@
           "maxclass": "message",
           "patching_rect": [
             574,
-            488,
+            506,
             100,
             22
           ],
@@ -735,7 +783,7 @@
           "maxclass": "message",
           "patching_rect": [
             574,
-            506,
+            524,
             100,
             22
           ],
@@ -791,7 +839,7 @@
           "maxclass": "message",
           "patching_rect": [
             717,
-            524,
+            542,
             100,
             22
           ],
@@ -888,6 +936,30 @@
       {
         "patchline": {
           "source": [
+            "scriptstart",
+            0
+          ],
+          "destination": [
+            "node",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "node",
+            1
+          ],
+          "destination": [
+            "runtimeconsole",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
             "node",
             0
           ],
@@ -964,7 +1036,7 @@
             0
           ],
           "destination": [
-            "warning",
+            "details",
             0
           ]
         }

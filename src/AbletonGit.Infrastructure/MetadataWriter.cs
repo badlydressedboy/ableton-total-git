@@ -46,16 +46,23 @@ public sealed class MetadataWriter
     }
     public async Task<IReadOnlyList<string>> WriteAsync(string root, ProjectModel model, CancellationToken ct, string metadataDirectory = ".abletongit")
     {
-        var dir = Path.Combine(root, metadataDirectory);
-        ProjectDiscovery.EnsureSafePath(root, dir);
-        Directory.CreateDirectory(dir);
+        return await ApplyAsync(root, Render(model).ToDictionary(p => metadataDirectory.Replace('\\', '/') + "/" + p.Key, p => (string?)p.Value, StringComparer.Ordinal), ct);
+    }
+    public async Task<IReadOnlyList<string>> ApplyAsync(string root, IReadOnlyDictionary<string, string?> generated, CancellationToken ct)
+    {
         var changed = new List<string>();
-        foreach (var (name, value) in Render(model))
+        foreach (var (relative, value) in generated)
         {
             ct.ThrowIfCancellationRequested();
-            var path = Path.Combine(dir, name);
+            var path = Path.Combine(root, relative);
             ProjectDiscovery.EnsureSafePath(root, path);
+            if (value is null)
+            {
+                if (File.Exists(path)) { File.Delete(path); changed.Add(relative); }
+                continue;
+            }
             if (File.Exists(path) && await File.ReadAllTextAsync(path, ct) == value) continue;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             var temp = path + ".tmp";
             ProjectDiscovery.EnsureSafePath(root, temp);
             try
@@ -64,7 +71,7 @@ public sealed class MetadataWriter
                 File.Move(temp, path, true);
             }
             finally { if (File.Exists(temp)) File.Delete(temp); }
-            changed.Add(metadataDirectory.Replace('\\', '/') + "/" + name);
+            changed.Add(relative);
         }
         return changed;
     }

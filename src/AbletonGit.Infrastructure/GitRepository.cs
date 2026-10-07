@@ -65,6 +65,47 @@ public sealed class GitRepository(IProcessRunner runner) : IGitRepository
         for (var i = 0; i + 1 < parts.Length; i += 2) if (parts[i].Trim().Length > 0) results.Add(new(parts[i].Trim(), parts[i + 1]));
         return results;
     }
+    // Overlay the reports Snapshot would write on Git's current changes, without writing files or objects.
+    public async Task<IReadOnlyList<FileChange>> PreviewGeneratedAsync(string directory, IReadOnlyList<FileChange> changes,
+        IReadOnlyDictionary<string, string?> generated, CancellationToken ct)
+    {
+        var files = changes.ToDictionary(f => f.Path, StringComparer.Ordinal);
+        var head = await Run(directory, ct, "rev-parse", "--verify", "HEAD");
+        var blobs = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (head.ExitCode == 0)
+        {
+            var tree = await Require(directory, ct, "ls-tree", "-r", "-z", "HEAD");
+            foreach (var entry in tree.Split('\0', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var tab = entry.IndexOf('\t'); var fields = entry[..tab].Split(' ');
+                if (fields[1] == "blob") blobs.Add(entry[(tab + 1)..], fields[2]);
+            }
+        }
+        foreach (var (relative, content) in generated)
+        {
+            var path = Path.Combine(directory, relative); ProjectDiscovery.EnsureSafePath(directory, path);
+            blobs.TryGetValue(relative, out var previous);
+            if (content is null)
+            {
+                files.Remove(relative);
+                if (previous is not null) files[relative] = new(" D", relative);
+                continue;
+            }
+            // Unchanged on disk: porcelain already tells us exactly whether Git considers it changed/ignored.
+            if (File.Exists(path) && await File.ReadAllTextAsync(path, ct) == content) continue;
+            files.Remove(relative);
+            if (previous is null)
+            {
+                var ignored = await Run(directory, ct, "check-ignore", "-q", "--", relative);
+                if (ignored.ExitCode > 1) throw new CompanionException("Unable to check ignored preview files.");
+                if (ignored.ExitCode == 0) continue;
+            }
+            var hash = await runner.RunAsync("git", ["hash-object", "--stdin", "--path=" + relative], directory, ct, input: content);
+            if (hash.ExitCode != 0) throw new CompanionException("Unable to preview generated reports. " + hash.Error.Trim());
+            if (hash.Output.Trim() != previous) files[relative] = new(previous is null ? "??" : " M", relative);
+        }
+        return files.Values.OrderBy(f => f.Path, StringComparer.Ordinal).ToList();
+    }
     public async Task<string?> PreviousMetadataAsync(string directory, CancellationToken ct, string metadataPath = ".abletongit/project.json")
     {
         if ((await Run(directory, ct, "rev-parse", "--verify", "HEAD")).ExitCode != 0) return null;

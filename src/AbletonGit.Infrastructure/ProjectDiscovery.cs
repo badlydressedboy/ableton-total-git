@@ -46,7 +46,13 @@ public static class ProjectDiscovery
         {
             var dir = stack.Pop();
             foreach (var file in Directory.EnumerateFiles(dir).Order(StringComparer.Ordinal))
+            {
+                // Filter names before querying attributes. Cloud drives can list transient shell/cache
+                // files (e.g. Desktop.ini) which no longer exist when their attributes are requested.
+                // Only Sets and, when requested, supported audio belong in this inventory.
+                if (!file.EndsWith(".als", StringComparison.OrdinalIgnoreCase) && !(includeMedia && IsAudio(file))) continue;
                 if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) == 0) yield return file;
+            }
             foreach (var child in Directory.EnumerateDirectories(dir).OrderDescending(StringComparer.Ordinal))
             {
                 var name = Path.GetFileName(child);

@@ -4,11 +4,29 @@ const { test } = require("node:test");
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
-const { Client } = require("./client");
+const { Client, normalizeLibraryPath } = require("./client");
 const { spawnSync } = require("node:child_process");
 const { createRequire } = require("node:module");
 const os = require("node:os");
 const zlib = require("node:zlib");
+async function unusedPort() {
+    const server = http.createServer();
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+    const port = server.address().port;
+    await new Promise(resolve => server.close(resolve));
+    return port;
+}
+
+test("library paths accept both slash styles, quotes, spaces, Unicode and UNC", () => {
+    const expected = "G:/My Drive/Music/Ableton/Projects/Live Sets";
+    for (const input of [expected, String.raw`G:\My Drive\Music\Ableton\Projects\Live Sets`,
+        String.raw`  "G:\My Drive\Music/Ableton\Projects/Live Sets"  `])
+        assert.equal(normalizeLibraryPath(input), expected);
+    assert.equal(normalizeLibraryPath(String.raw`'C:\Music  Library\音 Project'`), "C:/Music  Library/音 Project");
+    assert.equal(normalizeLibraryPath(String.raw`\\server\Music Share\音 Project`), "//server/Music Share/音 Project");
+    assert.equal(normalizeLibraryPath("  "), "");
+    assert.equal(normalizeLibraryPath("relative\\folder"), "relative/folder");
+});
 
 test("project selection is explicit; scope sends only intended API fields", async () => {
     const requests = [], events = [];
@@ -52,9 +70,9 @@ test("real loopback transport uses token and reports structured server errors", 
         response.writeHead(400, { "Content-Type": "application/json" });
         response.end(JSON.stringify({ error: "Run Init first." }));
     });
-    await new Promise(resolve => server.listen(17831, "127.0.0.1", resolve));
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
     try {
-        const events = [], client = new Client((...e) => events.push(e));
+        const events = [], client = new Client((...e) => events.push(e), undefined, server.address().port);
         client.token = "A".repeat(64); client.toolsReady = true; client.project = "Dub"; client.message = "Saved";
         assert.equal(await client.snapshot(), false);
         assert(events.some(e => e[0] === "status" && e[1] === "Run Init first."));
@@ -68,6 +86,11 @@ test("patch wires every action to Node, passes audio through and defaults projec
         assert(patch.lines.some(l => l.patchline.source[0] === id + "cmd" && l.patchline.destination[0] === "node"));
     assert.equal(patch.lines.filter(l => l.patchline.source[0] === "audioin" && l.patchline.destination[0] === "audioout").length, 2);
     assert.equal(patch.boxes.find(b => b.box.id === "scope").box.items[0], "Current project");
+    assert(patch.lines.some(l => l.patchline.source[0] === "set6" && l.patchline.destination[0] === "details"));
+    assert(!patch.lines.some(l => l.patchline.source[0] === "set6" && ["status", "warning"].includes(l.patchline.destination[0])));
+    assert.equal(patch.boxes.find(b => b.box.id === "library").box.outputmode, 1, "path transported as one literal symbol");
+    assert(patch.lines.some(l => l.patchline.source[0] === "node" && l.patchline.source[1] === 1 && l.patchline.destination[0] === "runtimeconsole"));
+    assert(patch.lines.some(l => l.patchline.source[0] === "scriptstart" && l.patchline.destination[0] === "node"));
     for (const id of ["snapshot", "push", "init"]) {
         assert.equal(patch.boxes.find(b => b.box.id === id).box.active, 0);
         assert(patch.lines.some(l => l.patchline.source[0] === "mutations" && l.patchline.destination[0] === id));
@@ -98,23 +121,34 @@ test("startup preflight gates writes, reports failures and supports recovery", a
     assert(requests.every(r => r[0] === "GET" && r[1] === "/api/tools"));
 });
 const packagePath = path.resolve(__dirname, "../artifacts/max-for-live");
+test("large warning lists go to console and leave Snapshot status readable", async () => {
+    const events = [], warnings = Array.from({ length: 120 }, (_, i) => `Project ${i}: ` + "Very long warning with external samples. ".repeat(50));
+    const client = new Client((...e) => events.push(e), async () => ({ created: true, hash: "abcdef0123456789", warnings }));
+    client.token = "token"; client.toolsReady = true; client.message = "Saved"; client.project = "Dub";
+    await client.snapshot();
+    assert.deepEqual(events.filter(e => e[0] === "detail"), [["detail", "120 warnings; see Max Console."]]);
+    assert.deepEqual(events.filter(e => e[0] === "console").map(e => e[1]), warnings);
+    assert.deepEqual(events.filter(e => e[0] === "status").at(-1), ["status", "Snapshot saved: abcdef012345"]);
+});
 test("device startup with no Git on PATH reports repair guidance and keeps writes disabled", {
     skip: !fs.existsSync(path.join(packagePath, "companion/AbletonGit.Api.exe"))
 }, async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "AbletonGit-missing-tools-"));
+    const testPort = await unusedPort();
     const handlers = new Map(), events = [];
-    const mock = { addHandler: (name, handler) => handlers.set(name, handler), outlet: (...args) => events.push(args) };
+    const mock = { addHandler: (name, handler) => handlers.set(name, handler), outlet: (...args) => events.push(args), post: text => events.push(["console", text]) };
     const filename = path.join(packagePath, "device.js"), localRequire = createRequire(filename);
     const processes = require("node:child_process");
+    const packaged = localRequire("./client");
     const load = new Function("require", "__dirname", "module", "exports", fs.readFileSync(filename, "utf8"));
     load(name => name === "max-api" ? mock : name === "child_process" ? {
-        spawn: (executable, args, options) => processes.spawn(executable, args, { ...options, env: { ...process.env, PATH: "" } })
-    } : localRequire(name), packagePath, { exports: {} }, {});
+        spawn: (executable, args, options) => processes.spawn(executable, [...args, "--port", String(testPort)], { ...options, env: { ...process.env, PATH: "" } })
+    } : name === "./client" ? { ...packaged, Client: class extends packaged.Client { constructor(emit, transport) { super(emit, transport, testPort); } } } : localRequire(name), packagePath, { exports: {} }, {});
     try {
         handlers.get("library")(root);
         assert.equal(await handlers.get("start")(), false);
         assert(!events.some(e => e[0] === "status" && e[1].startsWith("Ready.")));
-        assert(events.some(e => e[0] === "status" && e[1].includes("Install Git for Windows") && e[1].includes("PATH")), JSON.stringify(events));
+        assert(events.some(e => e[0] === "console" && e[1].includes("Install Git for Windows") && e[1].includes("PATH")), JSON.stringify(events));
         assert(!events.some(e => e[0] === "mutations" && e[1] === 1));
         assert.equal(await handlers.get("snapshot")(), false);
         assert.equal(await handlers.get("push")(), false);
@@ -129,16 +163,20 @@ test("published device launches companion, initialises and Snapshots a real libr
     skip: !fs.existsSync(path.join(packagePath, "companion/AbletonGit.Api.exe"))
 }, async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "AbletonGit-device-"));
+    const testPort = await unusedPort();
     const project = path.join(root, "Dub Project 音");
     fs.mkdirSync(path.join(project, "Ableton Project Info"), { recursive: true });
     fs.writeFileSync(path.join(project, "Dub.als"), zlib.gzipSync('<Ableton Creator="Ableton Live 12.3" MajorVersion="5" MinorVersion="12.0_0"><LiveSet><Tracks/><Scenes/></LiveSet></Ableton>'));
     const handlers = new Map(), events = [];
-    const mock = { addHandler: (name, handler) => handlers.set(name, handler), outlet: (...args) => events.push(args) };
+    const mock = { addHandler: (name, handler) => handlers.set(name, handler), outlet: (...args) => events.push(args), post: text => events.push(["console", text]) };
     const filename = path.join(packagePath, "device.js"), localRequire = createRequire(filename);
+    const processes = require("node:child_process"), packaged = localRequire("./client");
     const load = new Function("require", "__dirname", "module", "exports", fs.readFileSync(filename, "utf8"));
-    load(name => name === "max-api" ? mock : localRequire(name), packagePath, { exports: {} }, {});
+    load(name => name === "max-api" ? mock : name === "child_process" ? {
+        spawn: (executable, args, options) => processes.spawn(executable, [...args, "--port", String(testPort)], options)
+    } : name === "./client" ? { ...packaged, Client: class extends packaged.Client { constructor(emit, transport) { super(emit, transport, testPort); } } } : localRequire(name), packagePath, { exports: {} }, {});
     try {
-        handlers.get("library")(root); await handlers.get("start")();
+        handlers.get("library")('"' + root + '"'); await handlers.get("start")();
         assert(events.some(e => e[0] === "status" && e[1].startsWith("Ready.")), JSON.stringify(events));
         await handlers.get("init")();
         for (const [key, value] of [["user.name", "Device Test"], ["user.email", "device@example.invalid"], ["commit.gpgsign", "false"]]) {

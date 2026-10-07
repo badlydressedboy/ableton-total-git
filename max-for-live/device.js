@@ -3,12 +3,24 @@ const max = require("max-api");
 const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
-const { Client } = require("./client");
-const client = new Client((...message) => max.outlet(...message));
+const { Client, normalizeLibraryPath } = require("./client");
+const client = new Client((kind, ...values) => {
+    if (kind === "console") { max.post("Ableton Git: " + values.join(" ")); return; }
+    if (["status", "warning", "detail"].includes(kind)) {
+        const full = String(values[0] ?? "");
+        const line = full.replace(/\s+/g, " ").trim();
+        const limit = kind === "status" ? 100 : 65;
+        if (line.length > limit) {
+            max.post("Ableton Git: " + full);
+            values[0] = line.slice(0, limit - 21) + "... See Max Console.";
+        } else values[0] = line;
+    }
+    max.outlet(kind, ...values);
+});
 let library = "";
 let child = null;
 
-max.addHandler("library", (...parts) => { if (!client.busy) library = parts.join(" "); });
+max.addHandler("library", (...parts) => { if (!client.busy) library = normalizeLibraryPath(parts.join(" ")); });
 max.addHandler("description", (...parts) => { if (!client.busy) client.message = parts.join(" "); });
 max.addHandler("project", index => client.select(Number(index)));
 max.addHandler("scope", index => client.selectScope(Number(index)));
@@ -17,7 +29,7 @@ max.addHandler("push", () => client.push());
 max.addHandler("init", () => client.init());
 max.addHandler("refresh", () => client.run(async () => {
     if (!client.token) throw new Error("Start the companion first.");
-    await client.checkTools(); await client.refresh(); client.emit("status", "Ready. Projects refreshed; Git and Git LFS are callable.");
+    await client.checkTools(); await client.refresh(); await client.refreshState(); client.emit("status", "Ready. Projects and changed files refreshed.");
 }));
 max.addHandler("start", () => client.run(async () => {
     if (child) throw new Error("Companion already started. Use Refresh.");
@@ -28,6 +40,7 @@ max.addHandler("start", () => client.run(async () => {
     if (!fs.existsSync(executable)) throw new Error("Missing companion folder. Use the published M4L package.");
     client.emit("status", "Starting companion...");
     child = spawn(executable, ["--all", "--path", root], { cwd: path.dirname(executable), shell: false, windowsHide: true });
+    client.setRunning(true);
     const owned = child;
     owned.on("exit", () => { if (child === owned) { child = null; client.disconnect(); client.emit("status", "Companion stopped."); } });
     try {
@@ -52,14 +65,23 @@ max.addHandler("start", () => client.run(async () => {
         }
         if (failure) throw failure;
         await client.checkTools();
-        client.emit("status", "Ready. Git and Git LFS are callable. Choose a project; initialise once if needed.");
+        await client.refreshState();
+        client.emit("status", "Ready. Choose a project or All projects to preview your Snapshot.");
     } catch (error) { child = null; owned.kill(); client.disconnect(); throw error; }
 }));
 max.addHandler("stop", () => client.run(async () => {
+    if (!child) return;
     if (child) child.kill();
     child = null; client.disconnect(); client.project = null;
     client.emit("status", "Companion stopped.");
 }));
+// Saved Sets and external Git actions are reflected without repeatedly rebuilding the project menu.
+const stateTimer = setInterval(() => {
+    if (!client.busy && client.token && client.toolsReady) client.refreshState().catch(error => {
+        client.emit("detail", "Preview unavailable; use Refresh projects."); client.emit("console", error.message);
+    });
+}, 5000);
+stateTimer.unref();
 process.on("exit", () => { if (child && !client.busy) child.kill(); });
 client.selectScope(0);
 client.emit("status", "Enter library folder, then Start companion.");

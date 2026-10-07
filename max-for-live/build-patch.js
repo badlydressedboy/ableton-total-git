@@ -32,18 +32,21 @@ function button(id, caption, command, x, y, width, fields = false) {
 }
 label("title", "ABLETON GIT   •   Save in Live before Snapshot", 8, 2, 750);
 label("librarylabel", "Library folder", 8, 29, 86);
-box("library", "textedit", "", [98, 25, 465, 25], true, { numinlets: 1, numoutlets: 4, parameter_enable: 0, keymode: 1 });
+box("library", "textedit", "", [98, 25, 465, 25], true, { numinlets: 1, numoutlets: 4, parameter_enable: 0, keymode: 1, outputmode: 1, valuemode: 0 });
 box("description", "textedit", "", [98, 94, 465, 25], true, { numinlets: 1, numoutlets: 4, parameter_enable: 0, keymode: 1 });
 label("descriptionlabel", "Description", 8, 98, 86);
 label("projectlabel", "Project", 8, 64, 86);
 box("project", "umenu", null, [98, 61, 305, 25], true, { items: ["Choose project..."], parameter_enable: 0, numinlets: 1, numoutlets: 3 });
 box("scope", "umenu", null, [414, 61, 149, 25], true, { items: ["Current project", ",", "All projects"], parameter_enable: 0, numinlets: 1, numoutlets: 3 });
-label("warning", "Select the project you want to Snapshot. Save in Live first.", 8, 122, 880);
+label("warning", "Select the project you want to Snapshot. Save in Live first.", 8, 122, 500);
+label("details", "", 520, 122, 368);
 label("status", "Enter library folder, then Start companion.", 8, 145, 880);
 obj("node", "node.script device.js @autostart 1 @defer 1", 8, 500);
+box("scriptstart", "message", "script start", [280, 500, 95, 22]); wire("scriptstart", 0, "node");
+obj("runtimeconsole", "print AbletonGit-runtime", 380, 500); wire("node", 1, "runtimeconsole");
 obj("route", "route status warning busy projectclear projectitem projectselect detail mutations", 8, 550);
 wire("node", 0, "route");
-for (const [outlet, target] of [[0, "status"], [1, "warning"], [6, "warning"]]) {
+for (const [outlet, target] of [[0, "status"], [1, "warning"], [6, "details"]]) {
     obj("set" + outlet, "prepend set", 8 + outlet * 100, 585);
     wire("route", outlet, "set" + outlet); wire("set" + outlet, 0, target);
 }

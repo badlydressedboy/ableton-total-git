@@ -56,6 +56,12 @@ public static class ApiHost
             app.MapGet("/api/projects", (LibraryService s) => new { all = true, projects = s.Projects(path).Select(p => new { path = p, name = p }) });
             app.MapPost("/api/init", (LibraryService s, CancellationToken ct) => s.InitAsync(path, ct));
             app.MapGet("/api/status", (LibraryService s, CancellationToken ct) => s.StatusAsync(path, ct));
+            app.MapGet("/api/ui-state", (LibraryService s, CancellationToken ct) => s.UiStateAsync(path, ct));
+            app.MapGet("/api/preview", (string scope, string? project, LibraryService s, CancellationToken ct) =>
+            {
+                new SnapshotRequest("", Scope: scope, Project: project).Validate(true);
+                return s.PreviewAsync(path, scope == "project" ? project : null, ct);
+            });
             app.MapGet("/api/project", (LibraryService s, CancellationToken ct) => s.ProjectAsync(path, ct));
             app.MapGet("/api/history", (LibraryService s, CancellationToken ct) => s.HistoryAsync(path, ct));
             app.MapGet("/api/diff", (LibraryService s, CancellationToken ct) => s.DiffAsync(path, ct));
@@ -72,6 +78,12 @@ public static class ApiHost
         app.MapGet("/api/projects", () => new { all = false, projects = new[] { new { path = ".", name = Path.GetFileName(ProjectDiscovery.Discover(path).Root) } } });
         app.MapPost("/api/init", (CompanionService s, CancellationToken ct) => s.InitAsync(path, ct));
         app.MapGet("/api/status", (CompanionService s, CancellationToken ct) => s.StatusAsync(path, ct));
+        app.MapGet("/api/ui-state", (CompanionService s, CancellationToken ct) => s.UiStateAsync(path, ct));
+        app.MapGet("/api/preview", (string scope, string? project, CompanionService s, CancellationToken ct) =>
+        {
+            new SnapshotRequest("", Scope: scope, Project: project).Validate(false);
+            return s.PreviewAsync(path, ct);
+        });
         app.MapGet("/api/project", (CompanionService s, CancellationToken ct) => s.ProjectAsync(path, ct));
         app.MapGet("/api/history", (CompanionService s, CancellationToken ct) => s.HistoryAsync(path, ct));
         app.MapGet("/api/diff", (CompanionService s, CancellationToken ct) => s.DiffAsync(path, ct));

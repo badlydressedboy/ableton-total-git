@@ -13,9 +13,35 @@ public sealed record ProjectStatus(string Project, string Set, RepositoryState R
 public sealed record SnapshotResult(bool Created, string? Hash, string Message, ProjectDiff Diff, IReadOnlyList<FileChange> Files,
     RepositoryState Repository, bool Pushed, string? PushError, IReadOnlyList<string> Warnings);
 public sealed record Diagnostic(string Level, string Message);
+public sealed record CompanionUiState(bool Initialized, bool CanInitialize, bool CanPush, RepositoryState Repository);
+public sealed record SnapshotPreview(IReadOnlyList<FileChange> Files, int Count);
 
 public sealed class CompanionService(IGitRepository git, ISetReader reader, MetadataWriter metadata, ILogger<CompanionService> logger)
 {
+    public Task<CompanionUiState> UiStateAsync(string path, CancellationToken ct) =>
+        UiState(git, ProjectDiscovery.Discover(path).Root, ".abletongit/project.json", ct);
+    internal static async Task<CompanionUiState> UiState(IGitRepository git, string root, string catalog, CancellationToken ct)
+    {
+        var actual = await git.RootAsync(root, ct);
+        var correctRoot = actual is null || SamePath(actual, root);
+        var state = await git.StateAsync(root, ct);
+        var initialized = correctRoot && state.Exists && await git.LfsConfiguredAsync(root, ct) &&
+            File.Exists(Path.Combine(root, ".gitattributes")) && File.Exists(Path.Combine(root, ".gitignore")) &&
+            File.Exists(Path.Combine(root, catalog));
+        var canPush = correctRoot && state.Exists && state.Remote is not null && state.Upstream is not null &&
+            state.Ahead > 0 && state.Branch?.StartsWith("Detached", StringComparison.Ordinal) != true;
+        return new(initialized, correctRoot && !initialized, canPush, state);
+    }
+    public async Task<SnapshotPreview> PreviewAsync(string path, CancellationToken ct)
+    {
+        var l = ProjectDiscovery.Discover(path); await RequireRepository(l.Root, ct);
+        var state = await git.StateAsync(l.Root, ct);
+        var model = await reader.ReadAsync(l, ct);
+        var generated = MetadataWriter.Render(model).ToDictionary(p => ".abletongit/" + p.Key, p => (string?)p.Value, StringComparer.Ordinal);
+        var files = (await git.PreviewGeneratedAsync(l.Root, state.Changes, generated, ct))
+            .Where(c => SnapshotPath(c.Path) && (c.OriginalPath is null || SnapshotPath(c.OriginalPath))).ToList();
+        return new(files, files.Count);
+    }
     public async Task<ProjectModel> ProjectAsync(string path, CancellationToken ct) => await reader.ReadAsync(ProjectDiscovery.Discover(path), ct);
     public async Task<AnalysisResult> AnalyseAsync(string path, CancellationToken ct)
     {

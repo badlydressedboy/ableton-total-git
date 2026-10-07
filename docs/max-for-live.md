@@ -28,6 +28,10 @@ Keep the device **unfrozen** and keep its external files beside it. Moving only 
 
 ## Everyday use
 
+Snapshot status stays on its own line. Warnings appear as a short count, and each complete warning is posted to the Max Console. Long error messages are shortened in the UI and preserved in full in the console. Updating `device.js` and `client.js` fixes overflow in existing devices too; the newer patch also separates the scope reminder from the warning count.
+
+Library folder accepts forward slashes, Windows backslashes or mixed separators, including paths pasted with surrounding quotes. Spaces, Unicode and UNC shares are preserved. The path field outputs one literal symbol so Max does not interpret backslashes or split the path into messages; the client normalises separators before launching the companion. See the [textedit reference](https://docs.cycling74.com/reference/textedit/) for its single-symbol output mode.
+
 1. Enter the full **parent library folder** path, then click **Start companion**. Before showing Ready, the companion checks that `git --version` and `git lfs version` succeed in its process environment. Initialise, Snapshot and Push remain disabled until both checks pass, and are disabled again when the companion stops. Missing tools show installation/PATH guidance; after installing tools or changing PATH, restart Live and the companion. **Refresh projects** also checks tools again. Use one device/companion instance per library. The device launches a hidden companion process and obtains its fresh token in memory; it never saves the token in the Set or prints it to the Max console. Port `17831` must be free.
 2. Click **Initialise library** once for a new library. This creates the parent Git repository if needed, installs local LFS rules and generates reports. Existing nested project repositories are refused; migration remains a separate task.
 3. Select the intended project in the project dropdown. **Current project means this explicit selection**, not automatic detection of Live's open Set. It includes every saved Set and eligible local audio in that project.

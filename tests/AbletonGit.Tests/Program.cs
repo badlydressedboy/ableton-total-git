@@ -113,6 +113,25 @@ Test("multiple Sets require explicit selection; backups excluded", async () =>
     Directory.CreateDirectory(Path.Combine(p.Root, "Backup")); File.Copy(p.Set, Path.Combine(p.Root, "Backup", "Old.als"));
     Check(ProjectDiscovery.Discover(p.Set).Sets.Count == 2, "backup exclusion");
 });
+Test("discovery ignores disappearing incidental files but reports disappearing Sets", async () =>
+{
+    using var p = new Fixture();
+    await File.WriteAllTextAsync(Path.Combine(p.Root, "Desktop.ini"), "shell metadata");
+    var incidental = Path.Combine(p.Root, "z-unrelated.txt"); await File.WriteAllTextAsync(incidental, "transient");
+    using (var files = ProjectDiscovery.EnumerateFiles(p.Root).GetEnumerator())
+    {
+        Check(files.MoveNext() && files.Current == p.Set, "Sets only");
+        File.Delete(incidental); // The sorted directory listing has buffered this name already.
+        Check(!files.MoveNext(), "disappearing incidental file does not require attributes");
+    }
+    var media = ProjectDiscovery.EnumerateFiles(p.Root, true).ToList();
+    Check(media.Count == 2 && media.Contains(p.Set) && media.Contains(p.Audio), "audio inventory preserved; shell metadata excluded");
+    var disappearingSet = Path.Combine(p.Root, "Z-disappearing.als"); File.Copy(p.Set, disappearingSet);
+    using var sets = ProjectDiscovery.EnumerateFiles(p.Root).GetEnumerator();
+    Check(sets.MoveNext() && sets.Current == p.Set, "selected Set first");
+    File.Delete(disappearingSet);
+    await Throws<FileNotFoundException>(() => Task.FromResult(sets.MoveNext()));
+});
 Test("deterministic metadata, stable order, ALS remains byte-identical", async () =>
 {
     using var p = new Fixture(); var bytes = await File.ReadAllBytesAsync(p.Set);

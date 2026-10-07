@@ -45,6 +45,8 @@ public interface IGitRepository
     Task InstallLfsAsync(string directory, CancellationToken ct);
     Task<bool> LfsConfiguredAsync(string directory, CancellationToken ct);
     Task<RepositoryState> StateAsync(string directory, CancellationToken ct);
+    Task<IReadOnlyList<FileChange>> PreviewGeneratedAsync(string directory, IReadOnlyList<FileChange> changes,
+        IReadOnlyDictionary<string, string?> generated, CancellationToken ct);
     Task<IReadOnlyList<SnapshotEntry>> HistoryAsync(string directory, CancellationToken ct);
     Task<string?> PreviousMetadataAsync(string directory, CancellationToken ct, string metadataPath = ".abletongit/project.json");
     Task<bool> IsLfsAsync(string directory, string path, CancellationToken ct);

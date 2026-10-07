@@ -66,6 +66,24 @@ public sealed class LibraryService(IGitRepository git, ISetReader reader, Metada
     public Task<SnapshotResult> SnapshotProjectAsync(string path, string project, string message, bool push, CancellationToken ct) =>
         SnapshotAsync(path, message, push, ct, project: project);
 
+    public Task<CompanionUiState> UiStateAsync(string path, CancellationToken ct) =>
+        CompanionService.UiState(git, Root(path), Catalog, ct);
+    public async Task<SnapshotPreview> PreviewAsync(string path, string? project, CancellationToken ct)
+    {
+        var root = Root(path); await RequireRepo(root, ct);
+        var previous = await Previous(root, ct); var locations = Discover(root);
+        var knownProjects = KnownProjects(locations, root, previous);
+        ValidateProject(project, root, locations, previous);
+        if (project is not null) locations = locations.Where(l => ProjectDiscovery.Relative(root, l.Root) == project).ToList();
+        var model = await Read(root, locations, ct);
+        var scopedPrevious = project is null ? previous : previous is null ? null : previous with { Sets = previous.Sets.Where(s => s.ProjectPath == project).ToList() };
+        var catalog = ScopedCatalog(model, previous, project);
+        var generated = await Generated(root, catalog, ct, project, scopedPrevious);
+        var state = await git.StateAsync(root, ct);
+        var files = EligibleFiles(await git.PreviewGeneratedAsync(root, state.Changes, generated, ct), model, scopedPrevious, project, knownProjects);
+        return new(files, files.Count);
+    }
+
     public IReadOnlyList<string> Projects(string path) => Discover(Root(path))
         .Select(p => ProjectDiscovery.Relative(Root(path), p.Root)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
     public async Task<LibraryAnalysis> AnalyseAsync(string path, CancellationToken ct)
@@ -124,13 +142,10 @@ public sealed class LibraryService(IGitRepository git, ISetReader reader, Metada
             throw new CompanionException("Finish the Git merge/rebase operation before making a Snapshot.");
         var previous = await Previous(root, ct);
         var locations = Discover(root);
-        var knownProjects = locations.Select(l => ProjectDiscovery.Relative(root, l.Root))
-            .Concat(previous?.Sets.Select(s => s.ProjectPath) ?? []).Distinct(StringComparer.Ordinal).OrderByDescending(p => p == "." ? 0 : p.Length).ToList();
+        var knownProjects = KnownProjects(locations, root, previous);
+        ValidateProject(project, root, locations, previous);
         if (project is not null)
         {
-            if (!SafeRelative(project) || !locations.Any(l => ProjectDiscovery.Relative(root, l.Root) == project) &&
-                !(previous?.Sets.Any(s => s.ProjectPath == project) ?? false))
-                throw new CompanionException("Choose a project from this library before making a Snapshot.");
             locations = locations.Where(l => ProjectDiscovery.Relative(root, l.Root) == project).ToList();
         }
         var hashes = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -141,18 +156,11 @@ public sealed class LibraryService(IGitRepository git, ISetReader reader, Metada
         var model = await Read(root, locations, ct);
         var scopedPrevious = project is null ? previous : previous is null ? null : previous with { Sets = previous.Sets.Where(s => s.ProjectPath == project).ToList() };
         await CheckSets();
-        var catalog = project is null ? model : model with { Sets = (previous?.Sets.Where(s => s.ProjectPath != project) ?? [])
-            .Concat(model.Sets).OrderBy(s => s.SetPath, StringComparer.Ordinal).ToList() };
+        var catalog = ScopedCatalog(model, previous, project);
         await Write(root, catalog, ct, project, scopedPrevious);
         state = await git.StateAsync(root, ct);
         var diff = Compare(scopedPrevious, model, state);
-        var projects = model.Sets.Concat(scopedPrevious?.Sets ?? []).Select(s => s.ProjectPath).Distinct(StringComparer.Ordinal).ToList();
-        var metadataPaths = model.Sets.Concat(scopedPrevious?.Sets ?? []).Select(s => s.MetadataDirectory).Distinct(StringComparer.Ordinal).ToList();
-        bool Eligible(string p) => p is Catalog or ".gitignore" or ".gitattributes" ||
-            metadataPaths.Any(dir => ReportNames.Any(name => p == dir + "/" + name)) ||
-            projects.Any(selected => InProject(p, selected, out var local) && CompanionService.SnapshotPath(local) &&
-                (project is null || knownProjects.FirstOrDefault(owner => InProject(p, owner, out _)) == project));
-        var files = state.Changes.Where(c => Eligible(c.Path) && (c.OriginalPath is null || Eligible(c.OriginalPath))).ToList();
+        var files = EligibleFiles(state.Changes, model, scopedPrevious, project, knownProjects);
         var warnings = Warnings(model);
         var media = Media(model); var managed = await LfsChecks(root, media, ct);
         for (var i = 0; i < media.Count; i++) if (!managed[i])
@@ -216,14 +224,23 @@ public sealed class LibraryService(IGitRepository git, ISetReader reader, Metada
     }
     private async Task<LibraryAnalysis> Write(string root, LibraryModel model, CancellationToken ct, string? project = null, LibraryModel? scopedPrevious = null)
     {
-        var changed = new List<string>();
+        var generated = await Generated(root, model, ct, project, scopedPrevious);
+        var groups = generated.GroupBy(p => Path.GetDirectoryName(p.Key)).ToList();
+        var results = new IReadOnlyList<string>[groups.Count];
+        await Parallel.ForEachAsync(Enumerable.Range(0, groups.Count), new ParallelOptions { MaxDegreeOfParallelism = MaxParallelProjects, CancellationToken = ct }, async (i, token) =>
+            results[i] = await metadata.ApplyAsync(root, groups[i].ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal), token));
+        return new(model, results.SelectMany(r => r).Order(StringComparer.Ordinal).ToList());
+    }
+    private static async Task<IReadOnlyDictionary<string, string?>> Generated(string root, LibraryModel model, CancellationToken ct, string? project, LibraryModel? scopedPrevious)
+    {
+        var generated = new Dictionary<string, string?>(StringComparer.Ordinal);
         var writable = model.Sets.Where(s => project is null || s.ProjectPath == project).ToList();
-        var results = new IReadOnlyList<string>[writable.Count];
+        var results = new IReadOnlyDictionary<string, string>[writable.Count];
         await Parallel.ForEachAsync(Enumerable.Range(0, writable.Count), new ParallelOptions { MaxDegreeOfParallelism = MaxParallelProjects, CancellationToken = ct }, async (i, token) =>
         {
-            var set = writable[i]; results[i] = await metadata.WriteAsync(root, set.Model, token, set.MetadataDirectory);
+            token.ThrowIfCancellationRequested(); results[i] = MetadataWriter.Render(writable[i].Model); await Task.CompletedTask;
         });
-        foreach (var result in results) changed.AddRange(result);
+        for (var i = 0; i < writable.Count; i++) foreach (var (name, content) in results[i]) generated.Add(writable[i].MetadataDirectory + "/" + name, content);
         // Remove only our six derived reports in stale hash directories; never delete music or arbitrary files.
         var setsDirectory = Path.Combine(root, ".abletongit", "sets"); ProjectDiscovery.EnsureSafePath(root, setsDirectory);
         if (Directory.Exists(setsDirectory)) foreach (var directory in Directory.EnumerateDirectories(setsDirectory))
@@ -234,20 +251,35 @@ public sealed class LibraryService(IGitRepository git, ISetReader reader, Metada
             foreach (var name in ReportNames)
             {
                 var file = Path.Combine(directory, name); ProjectDiscovery.EnsureSafePath(root, file);
-                if (File.Exists(file)) { File.Delete(file); changed.Add(relative + "/" + name); }
+                if (File.Exists(file)) generated.Add(relative + "/" + name, null);
             }
         }
         var catalog = Path.Combine(root, Catalog); ProjectDiscovery.EnsureSafePath(root, catalog);
-        var content = ModelJson.Serialize(model);
-        if (!File.Exists(catalog) || await File.ReadAllTextAsync(catalog, ct) != content)
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(catalog)!);
-            var temp = catalog + ".tmp"; ProjectDiscovery.EnsureSafePath(root, temp);
-            try { await File.WriteAllTextAsync(temp, content, new UTF8Encoding(false), ct); File.Move(temp, catalog, true); }
-            finally { if (File.Exists(temp)) File.Delete(temp); }
-            changed.Add(Catalog);
-        }
-        return new(model, changed);
+        generated.Add(Catalog, ModelJson.Serialize(model));
+        return generated;
+    }
+    private static List<string> KnownProjects(IReadOnlyList<ProjectLocation> locations, string root, LibraryModel? previous) =>
+        locations.Select(l => ProjectDiscovery.Relative(root, l.Root)).Concat(previous?.Sets.Select(s => s.ProjectPath) ?? [])
+            .Distinct(StringComparer.Ordinal).OrderByDescending(p => p == "." ? 0 : p.Length).ToList();
+    private static void ValidateProject(string? project, string root, IReadOnlyList<ProjectLocation> locations, LibraryModel? previous)
+    {
+        if (project is not null && (!SafeRelative(project) || !locations.Any(l => ProjectDiscovery.Relative(root, l.Root) == project) &&
+            !(previous?.Sets.Any(s => s.ProjectPath == project) ?? false)))
+            throw new CompanionException("Choose a project from this library before making a Snapshot.");
+    }
+    private static LibraryModel ScopedCatalog(LibraryModel model, LibraryModel? previous, string? project) =>
+        project is null ? model : model with { Sets = (previous?.Sets.Where(s => s.ProjectPath != project) ?? [])
+            .Concat(model.Sets).OrderBy(s => s.SetPath, StringComparer.Ordinal).ToList() };
+    private static List<FileChange> EligibleFiles(IReadOnlyList<FileChange> changes, LibraryModel model, LibraryModel? previous,
+        string? project, IReadOnlyList<string> knownProjects)
+    {
+        var projects = model.Sets.Concat(previous?.Sets ?? []).Select(s => s.ProjectPath).Distinct(StringComparer.Ordinal).ToList();
+        var metadataPaths = model.Sets.Concat(previous?.Sets ?? []).Select(s => s.MetadataDirectory).Distinct(StringComparer.Ordinal).ToList();
+        bool Eligible(string p) => p is Catalog or ".gitignore" or ".gitattributes" ||
+            metadataPaths.Any(dir => ReportNames.Any(name => p == dir + "/" + name)) ||
+            projects.Any(selected => InProject(p, selected, out var local) && CompanionService.SnapshotPath(local) &&
+                (project is null || knownProjects.FirstOrDefault(owner => InProject(p, owner, out _)) == project));
+        return changes.Where(c => Eligible(c.Path) && (c.OriginalPath is null || Eligible(c.OriginalPath))).OrderBy(c => c.Path, StringComparer.Ordinal).ToList();
     }
     private async Task<LibraryModel?> Previous(string root, CancellationToken ct)
     {
