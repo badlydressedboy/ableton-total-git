@@ -1,5 +1,31 @@
 "use strict";
 const http = require("http");
+const fs = require("fs");
+const DEFAULT_DESCRIPTION = "Raw Creativity";
+
+// Live may save by replacing a file, producing several rename/change events.
+function watchLibrary(root, onChange, onError, ready = () => true, delay = 750) {
+    let timer, closed = false, scanning = false, dirty = false;
+    function schedule(wait = delay) {
+        clearTimeout(timer);
+        timer = setTimeout(scan, wait); timer.unref();
+    }
+    async function scan() {
+        if (closed || !dirty) return;
+        if (scanning || !ready()) { schedule(100); return; }
+        dirty = false; scanning = true;
+        try { await onChange(); } catch (error) { onError(error); }
+        finally { scanning = false; if (!closed && dirty) schedule(); }
+    }
+    const watcher = fs.watch(root, { recursive: true, persistent: false }, (_event, filename) => {
+        if (closed) return;
+        const parts = String(filename || "").replace(/\\/g, "/").toLowerCase().split("/");
+        if (parts.some(part => [".git", ".abletongit", "backup"].includes(part)) || /\.(asd|tmp)$/.test(parts.at(-1))) return;
+        dirty = true; schedule();
+    });
+    watcher.on("error", error => { watcher.close(); clearTimeout(timer); closed = true; onError(error); });
+    return { close() { closed = true; clearTimeout(timer); watcher.close(); } };
+}
 
 function normalizeLibraryPath(value) {
     let result = String(value ?? "").trim();
@@ -22,7 +48,7 @@ class Client {
         this.project = null;
         this.all = false;
         this.scope = "project";
-        this.message = "";
+        this.message = DEFAULT_DESCRIPTION;
         this.running = false;
         this.repositoryState = null;
         this.preview = null;
@@ -33,15 +59,30 @@ class Client {
     }
     updateControls() {
         const ready = Boolean(this.token && this.toolsReady && !this.busy);
-        this.emit("mutations", ready ? 1 : 0);
-        this.emit("startenabled", !this.running && !this.busy ? 1 : 0);
-        this.emit("stopenabled", this.running && !this.busy ? 1 : 0);
-        this.emit("initenabled", ready && !this.previewLoading && this.repositoryState?.canInitialize === true ? 1 : 0);
-        this.emit("pushenabled", ready && !this.previewLoading && this.repositoryState?.canPush === true ? 1 : 0);
-        this.emit("snapshotenabled", ready && !this.previewLoading && this.repositoryState?.initialized === true && this.preview?.count > 0 ? 1 : 0);
-        this.emit("refreshenabled", this.token && !this.busy && !this.previewLoading ? 1 : 0);
+        const hasChanges = this.preview?.count > 0;
+        const canCommit = this.repositoryState?.initialized === true && hasChanges && this.validDescription();
+        const states = {
+            mutations: ready,
+            startenabled: !this.running && !this.busy,
+            stopenabled: this.running && !this.busy,
+            initenabled: ready && this.repositoryState?.canInitialize === true,
+            pushenabled: ready && (hasChanges ? canCommit : this.repositoryState?.canPush === true),
+            snapshotenabled: ready && this.repositoryState?.initialized === true && this.preview?.count > 0 && this.validDescription(),
+            refreshenabled: this.token && !this.busy
+        };
+        // Idle polling retains the last known state. Explicit actions wait for any pending read.
+        this.controlValues ||= {};
+        for (const [kind, enabled] of Object.entries(states)) {
+            const value = enabled ? 1 : 0;
+            if (this.controlValues[kind] !== value) { this.controlValues[kind] = value; this.emit(kind, value); }
+        }
     }
     setRunning(value) { this.running = value; this.updateControls(); }
+    validDescription() { return Array.from(this.message.trim()).length >= 4; }
+    setDescription(value) {
+        if (this.busy) return;
+        this.message = String(value); this.updateControls();
+    }
     disconnect() {
         this.token = null; this.toolsReady = false; this.running = false;
         this.repositoryState = null; this.preview = null; this.selectionVersion++;
@@ -51,11 +92,16 @@ class Client {
         const signature = JSON.stringify([files, summary]);
         if (this.previewSignature === signature) return;
         this.previewSignature = signature;
+        this.emit("filelist", "bgcolor", 0.12, 0.12, 0.12, 1);
+        this.emit("filelist", "fgcolor", 1, 1, 1, 1);
+        this.emit("filelist", "textcolor", 1, 1, 1, 1);
         this.emit("filelist", "clear", "all");
         this.emit("filelist", "rows", Math.max(1, files.length));
+        const paths = files.map(file => file.originalPath ? `${file.originalPath} -> ${file.path}` : file.path);
+        this.emit("filelist", "col", 1, "width", Math.max(850, ...paths.map(value => value.length * 7)));
         files.forEach((file, row) => {
             this.emit("filelist", "set", 0, row, file.state.trim() === "??" ? "New" : file.state.trim());
-            this.emit("filelist", "set", 1, row, file.originalPath ? `${file.originalPath} -> ${file.path}` : file.path);
+            this.emit("filelist", "set", 1, row, paths[row]);
         });
         this.emit("filesummary", summary);
     }
@@ -105,7 +151,7 @@ class Client {
     }
     invalidatePreview() {
         this.selectionVersion++; this.preview = null;
-        this.showPreview([], "Checking files..."); this.updateControls();
+        this.showPreview([], this.token ? "Checking files..." : "Start the companion to preview files."); this.updateControls();
         return this.refreshState().catch(error => { this.emit("detail", "Preview unavailable; use Refresh projects."); this.emit("console", error.message); });
     }
     requireTools() {
@@ -144,14 +190,18 @@ class Client {
             request.end(payload);
         });
     }
-    async run(action) {
+    async run(action, waitForRefresh = true) {
         if (this.busy) return false;
         this.busy = true; this.emit("busy", 1); this.updateControls();
-        try { if (this.refreshPromise) await this.refreshPromise; await action(); return true; }
+        try {
+            if (waitForRefresh && this.refreshPromise) { try { await this.refreshPromise; } catch { /* The action checks its own prerequisites. */ } }
+            await action(); return true;
+        }
         catch (error) { this.emit("status", error.message); return false; }
         finally { this.busy = false; this.emit("busy", 0); this.updateControls(); }
     }
     async refresh() {
+        this.previewSignature = null; // A manual Refresh also repaints a newly loaded/reconnected Max list.
         const result = await this.transport("GET", "/api/projects");
         this.all = result.all;
         this.projects = result.projects;
@@ -169,35 +219,47 @@ class Client {
     selectScope(index) {
         if (this.busy) return;
         this.scope = index === 1 ? "all" : "project";
+        this.emit("scopeselect", this.scope === "all" ? 1 : 0);
         this.emit("warning", this.scope === "all" ? "All projects: includes saved changes throughout the library." : "Select the project you want to Snapshot. Save in Live first.");
         return this.invalidatePreview();
     }
     snapshot() {
-        return this.run(async () => {
+        return this.run(() => this.createSnapshot());
+    }
+    async createSnapshot() {
             this.requireTools();
-            if (!this.message.trim()) throw new Error("Enter a Snapshot description.");
+            if (!this.validDescription()) throw new Error("Enter a Snapshot description with at least 4 characters.");
             if (this.scope === "all" && !this.all) throw new Error("All projects requires a library companion.");
             if (this.scope === "project" && !this.project) throw new Error("Choose the project you want to Snapshot.");
             this.emit("status", "Creating Snapshot...");
             const body = { message: this.message, push: false, scope: this.scope };
             if (this.scope === "project") body.project = this.project;
             const result = await this.transport("POST", "/api/snapshot", body);
-            if (result.created) { this.message = ""; this.emit("descriptionclear"); }
+            if (result.created) { this.message = DEFAULT_DESCRIPTION; this.emit("descriptionclear"); }
             this.emit("status", result.created ? "Snapshot saved: " + result.hash.slice(0, 12) : result.message);
             const warnings = result.warnings || [];
             this.emit("detail", warnings.length ? `${warnings.length} warnings; see Max Console.` : "No warnings.");
             warnings.forEach(warning => this.emit("console", warning));
             await this.refreshAfterOperation();
-        });
+            return result;
     }
     push() {
         return this.run(async () => {
             this.requireTools();
             await this.refreshState();
-            if (!this.repositoryState?.canPush) throw new Error("No local commits to push to the configured tracking branch.");
+            let committed = false;
+            if (this.preview?.count > 0) committed = (await this.createSnapshot()).created;
+            if (!this.repositoryState?.canPush) {
+                this.emit("status", committed ? "Snapshot saved locally. No remote push available." : "Nothing to push to the configured tracking branch.");
+                return;
+            }
             this.emit("status", "Pushing repository history...");
-            await this.transport("POST", "/api/push");
-            this.emit("status", "Push complete.");
+            try { await this.transport("POST", "/api/push"); }
+            catch (error) {
+                await this.refreshAfterOperation();
+                throw new Error((committed ? "Snapshot saved locally; push failed: " : "Push failed; local commits retained: ") + error.message);
+            }
+            this.emit("status", committed ? "Snapshot committed and pushed." : "Push complete.");
             await this.refreshAfterOperation();
         });
     }
@@ -213,4 +275,4 @@ class Client {
         });
     }
 }
-module.exports = { Client, normalizeLibraryPath };
+module.exports = { Client, normalizeLibraryPath, DEFAULT_DESCRIPTION, watchLibrary };

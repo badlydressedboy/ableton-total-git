@@ -3,13 +3,14 @@ const max = require("max-api");
 const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
-const { Client, normalizeLibraryPath } = require("./client");
+const { Client, normalizeLibraryPath, watchLibrary } = require("./client");
+const { Preferences } = require("./preferences");
 const client = new Client((kind, ...values) => {
     if (kind === "console") { max.post("Ableton Git: " + values.join(" ")); return; }
     if (["status", "warning", "detail"].includes(kind)) {
         const full = String(values[0] ?? "");
         const line = full.replace(/\s+/g, " ").trim();
-        const limit = kind === "status" ? 100 : 65;
+        const limit = kind === "status" ? 75 : kind === "warning" ? 50 : 30;
         if (line.length > limit) {
             max.post("Ableton Git: " + full);
             values[0] = line.slice(0, limit - 21) + "... See Max Console.";
@@ -17,32 +18,55 @@ const client = new Client((kind, ...values) => {
     }
     max.outlet(kind, ...values);
 });
+const preferences = new Preferences();
 let library = "";
+try { library = preferences.loadLibrary(); }
+catch { max.post("Ableton Git: Unable to read the saved library folder. Enter it again and Start companion to save it."); }
 let child = null;
+let libraryWatcher = null;
+function stopWatching() { if (libraryWatcher) libraryWatcher.close(); libraryWatcher = null; }
 
 max.addHandler("library", (...parts) => { if (!client.busy) library = normalizeLibraryPath(parts.join(" ")); });
-max.addHandler("description", (...parts) => { if (!client.busy) client.message = parts.join(" "); });
+max.addHandler("description", (...parts) => client.setDescription(parts.join(" ")));
 max.addHandler("project", index => client.select(Number(index)));
 max.addHandler("scope", index => client.selectScope(Number(index)));
 max.addHandler("snapshot", () => client.snapshot());
 max.addHandler("push", () => client.push());
 max.addHandler("init", () => client.init());
+max.addHandler("gitstatus", () => client.run(async () => {
+    const root = path.resolve(library);
+    if (!library || !path.isAbsolute(library) || !fs.statSync(root).isDirectory())
+        throw new Error("Enter a valid library folder before opening Git status.");
+    const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+    // A direct spawn with ignored stdin exits even with -NoExit. Start-Process
+    // creates a separate interactive console. The folder stays a literal cwd.
+    const launch = "$ErrorActionPreference = 'Stop'; Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\\WindowsPowerShell\\v1.0\\powershell.exe') -WorkingDirectory (Get-Location).Path -ArgumentList @('-NoLogo', '-NoProfile', '-NoExit', '-Command', 'git status') -WindowStyle Normal";
+    const launcher = spawn(powershell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(launch, "utf16le").toString("base64")],
+        { cwd: root, shell: false, stdio: "ignore", windowsHide: true });
+    await new Promise((resolve, reject) => {
+        launcher.once("error", reject);
+        launcher.once("exit", code => code === 0 ? resolve() : reject(new Error("Unable to open the PowerShell window.")));
+    });
+    client.emit("status", "Opened PowerShell with Git status for the library.");
+}, false));
 max.addHandler("refresh", () => client.run(async () => {
     if (!client.token) throw new Error("Start the companion first.");
     await client.checkTools(); await client.refresh(); await client.refreshState(); client.emit("status", "Ready. Projects and changed files refreshed.");
 }));
-max.addHandler("start", () => client.run(async () => {
+function startCompanion() { return client.run(async () => {
     if (child) throw new Error("Companion already started. Use Refresh.");
     const root = path.resolve(library);
     if (!library || !path.isAbsolute(library) || !fs.statSync(root).isDirectory())
         throw new Error("Enter the full path to your Ableton projects library folder.");
     const executable = path.join(__dirname, "companion", "AbletonGit.Api.exe");
     if (!fs.existsSync(executable)) throw new Error("Missing companion folder. Use the published M4L package.");
+    try { preferences.saveLibrary(root); }
+    catch { max.post("Ableton Git: Unable to save the library folder preference. The companion can still run."); }
     client.emit("status", "Starting companion...");
     child = spawn(executable, ["--all", "--path", root], { cwd: path.dirname(executable), shell: false, windowsHide: true });
-    client.setRunning(true);
     const owned = child;
-    owned.on("exit", () => { if (child === owned) { child = null; client.disconnect(); client.emit("status", "Companion stopped."); } });
+    owned.once("spawn", () => { if (child === owned) client.setRunning(true); });
+    owned.on("exit", () => { if (child === owned) { stopWatching(); child = null; client.disconnect(); client.emit("status", "Companion stopped."); } });
     try {
         const token = await new Promise((resolve, reject) => {
             let output = "";
@@ -66,15 +90,23 @@ max.addHandler("start", () => client.run(async () => {
         if (failure) throw failure;
         await client.checkTools();
         await client.refreshState();
-        client.emit("status", "Ready. Choose a project or All projects to preview your Snapshot.");
-    } catch (error) { child = null; owned.kill(); client.disconnect(); throw error; }
-}));
+        const scanError = error => { client.emit("detail", "Auto-scan unavailable; polling continues."); client.emit("console", error.message); };
+        try {
+            libraryWatcher = watchLibrary(root, async () => {
+                if (child !== owned || !client.token || !client.toolsReady) return;
+                await client.refresh(); await client.refreshState();
+            }, scanError, () => !client.busy && !client.refreshPromise);
+        } catch (error) { scanError(error); }
+        client.emit("status", "Companion running. File preview is up to date.");
+    } catch (error) { stopWatching(); child = null; owned.kill(); client.disconnect(); throw error; }
+}); }
+max.addHandler("start", startCompanion);
 max.addHandler("stop", () => client.run(async () => {
-    if (!child) return;
+    stopWatching();
     if (child) child.kill();
     child = null; client.disconnect(); client.project = null;
     client.emit("status", "Companion stopped.");
-}));
+}, false));
 // Saved Sets and external Git actions are reflected without repeatedly rebuilding the project menu.
 const stateTimer = setInterval(() => {
     if (!client.busy && client.token && client.toolsReady) client.refreshState().catch(error => {
@@ -82,6 +114,9 @@ const stateTimer = setInterval(() => {
     });
 }, 5000);
 stateTimer.unref();
-process.on("exit", () => { if (child && !client.busy) child.kill(); });
-client.selectScope(0);
-client.emit("status", "Enter library folder, then Start companion.");
+process.on("exit", () => { stopWatching(); if (child) child.kill(); });
+client.selectScope(1);
+client.emit("libraryrestore", library);
+client.emit("descriptionclear");
+client.emit("status", library ? "Saved library folder loaded. Starting companion..." : "Enter library folder, then Start companion.");
+module.exports.startup = library ? startCompanion() : Promise.resolve(false);

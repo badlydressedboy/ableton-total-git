@@ -13,7 +13,7 @@
       0,
       0,
       930,
-      950
+      1200
     ],
     "openinpresentation": 1,
     "devicewidth": 930,
@@ -27,18 +27,11 @@
           "maxclass": "comment",
           "patching_rect": [
             8,
-            2,
-            750,
+            200,
+            90,
             20
           ],
-          "text": "ABLETON GIT   •   Save in Live before Snapshot",
-          "presentation": 1,
-          "presentation_rect": [
-            8,
-            2,
-            750,
-            20
-          ]
+          "text": "ABLETON GIT"
         }
       },
       {
@@ -47,16 +40,16 @@
           "maxclass": "comment",
           "patching_rect": [
             8,
-            29,
-            86,
+            26,
+            75,
             20
           ],
           "text": "Library folder",
           "presentation": 1,
           "presentation_rect": [
             8,
-            29,
-            86,
+            26,
+            75,
             20
           ]
         }
@@ -66,9 +59,9 @@
           "id": "library",
           "maxclass": "textedit",
           "patching_rect": [
-            98,
-            25,
-            465,
+            85,
+            22,
+            335,
             25
           ],
           "numinlets": 1,
@@ -80,9 +73,9 @@
           "text": "",
           "presentation": 1,
           "presentation_rect": [
-            98,
-            25,
-            465,
+            85,
+            22,
+            335,
             25
           ]
         }
@@ -92,21 +85,22 @@
           "id": "description",
           "maxclass": "textedit",
           "patching_rect": [
-            98,
-            94,
-            465,
+            585,
+            50,
+            150,
             25
           ],
           "numinlets": 1,
           "numoutlets": 4,
           "parameter_enable": 0,
           "keymode": 1,
-          "text": "",
+          "outputmode": 1,
+          "text": "Raw Creativity",
           "presentation": 1,
           "presentation_rect": [
-            98,
-            94,
-            465,
+            585,
+            50,
+            150,
             25
           ]
         }
@@ -116,17 +110,17 @@
           "id": "descriptionlabel",
           "maxclass": "comment",
           "patching_rect": [
-            8,
-            98,
-            86,
+            510,
+            54,
+            75,
             20
           ],
           "text": "Description",
           "presentation": 1,
           "presentation_rect": [
-            8,
-            98,
-            86,
+            510,
+            54,
+            75,
             20
           ]
         }
@@ -137,16 +131,16 @@
           "maxclass": "comment",
           "patching_rect": [
             8,
-            64,
-            86,
+            54,
+            75,
             20
           ],
           "text": "Project",
           "presentation": 1,
           "presentation_rect": [
             8,
-            64,
-            86,
+            54,
+            75,
             20
           ]
         }
@@ -156,9 +150,9 @@
           "id": "project",
           "maxclass": "umenu",
           "patching_rect": [
-            98,
-            61,
-            305,
+            85,
+            50,
+            260,
             25
           ],
           "items": [
@@ -169,9 +163,9 @@
           "numoutlets": 3,
           "presentation": 1,
           "presentation_rect": [
-            98,
-            61,
-            305,
+            85,
+            50,
+            260,
             25
           ]
         }
@@ -181,9 +175,9 @@
           "id": "scope",
           "maxclass": "umenu",
           "patching_rect": [
-            414,
-            61,
-            149,
+            355,
+            50,
+            145,
             25
           ],
           "items": [
@@ -196,9 +190,9 @@
           "numoutlets": 3,
           "presentation": 1,
           "presentation_rect": [
-            414,
-            61,
-            149,
+            355,
+            50,
+            145,
             25
           ]
         }
@@ -209,15 +203,15 @@
           "maxclass": "comment",
           "patching_rect": [
             8,
-            122,
+            0,
             500,
             20
           ],
-          "text": "Select the project you want to Snapshot. Save in Live first.",
+          "text": "Select a project. Save in Live before Snapshot.",
           "presentation": 1,
           "presentation_rect": [
             8,
-            122,
+            0,
             500,
             20
           ]
@@ -229,16 +223,16 @@
           "maxclass": "comment",
           "patching_rect": [
             520,
-            122,
-            368,
+            0,
+            400,
             20
           ],
           "text": "",
           "presentation": 1,
           "presentation_rect": [
             520,
-            122,
-            368,
+            0,
+            400,
             20
           ]
         }
@@ -249,17 +243,88 @@
           "maxclass": "comment",
           "patching_rect": [
             8,
-            145,
-            880,
+            77,
+            537,
             20
           ],
           "text": "Enter library folder, then Start companion.",
           "presentation": 1,
           "presentation_rect": [
             8,
-            145,
-            880,
+            77,
+            537,
             20
+          ]
+        }
+      },
+      {
+        "box": {
+          "id": "filesummary",
+          "maxclass": "comment",
+          "patching_rect": [
+            8,
+            117,
+            800,
+            20
+          ],
+          "text": "Start the companion to preview files.",
+          "presentation": 1,
+          "presentation_rect": [
+            8,
+            117,
+            800,
+            20
+          ]
+        }
+      },
+      {
+        "box": {
+          "id": "filelist",
+          "maxclass": "jit.cellblock",
+          "patching_rect": [
+            8,
+            139,
+            912,
+            276
+          ],
+          "cols": 2,
+          "rows": 1,
+          "rowheight": 14,
+          "colwidth": 75,
+          "hscroll": 1,
+          "vscroll": 1,
+          "readonly": 1,
+          "selmode": 0,
+          "neverdirty": 1,
+          "datadirty": 0,
+          "fontsize": 11,
+          "numinlets": 2,
+          "numoutlets": 4,
+          "bgcolor": [
+            0.12,
+            0.12,
+            0.12,
+            1
+          ],
+          "fgcolor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "textcolor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "grid": 0,
+          "presentation": 1,
+          "presentation_rect": [
+            8,
+            139,
+            912,
+            276
           ]
         }
       },
@@ -312,7 +377,7 @@
             250,
             22
           ],
-          "text": "route status warning busy projectclear projectitem projectselect detail mutations"
+          "text": "route status warning busy projectclear projectitem projectselect detail mutations startenabled stopenabled initenabled pushenabled snapshotenabled refreshenabled filelist filesummary descriptionclear libraryrestore scopeselect"
         }
       },
       {
@@ -347,6 +412,19 @@
           "maxclass": "newobj",
           "patching_rect": [
             608,
+            585,
+            250,
+            22
+          ],
+          "text": "prepend set"
+        }
+      },
+      {
+        "box": {
+          "id": "set15",
+          "maxclass": "newobj",
+          "patching_rect": [
+            1508,
             585,
             250,
             22
@@ -391,6 +469,149 @@
             22
           ],
           "text": "prepend active"
+        }
+      },
+      {
+        "box": {
+          "id": "startactive",
+          "maxclass": "newobj",
+          "patching_rect": [
+            800,
+            940,
+            250,
+            22
+          ],
+          "text": "prepend active"
+        }
+      },
+      {
+        "box": {
+          "id": "stopactive",
+          "maxclass": "newobj",
+          "patching_rect": [
+            800,
+            970,
+            250,
+            22
+          ],
+          "text": "prepend active"
+        }
+      },
+      {
+        "box": {
+          "id": "initactive",
+          "maxclass": "newobj",
+          "patching_rect": [
+            800,
+            1000,
+            250,
+            22
+          ],
+          "text": "prepend active"
+        }
+      },
+      {
+        "box": {
+          "id": "pushactive",
+          "maxclass": "newobj",
+          "patching_rect": [
+            800,
+            1030,
+            250,
+            22
+          ],
+          "text": "prepend active"
+        }
+      },
+      {
+        "box": {
+          "id": "snapshotactive",
+          "maxclass": "newobj",
+          "patching_rect": [
+            800,
+            1060,
+            250,
+            22
+          ],
+          "text": "prepend active"
+        }
+      },
+      {
+        "box": {
+          "id": "refreshactive",
+          "maxclass": "newobj",
+          "patching_rect": [
+            800,
+            1090,
+            250,
+            22
+          ],
+          "text": "prepend active"
+        }
+      },
+      {
+        "box": {
+          "id": "descriptionclear",
+          "maxclass": "message",
+          "patching_rect": [
+            900,
+            585,
+            140,
+            22
+          ],
+          "text": "set Raw Creativity"
+        }
+      },
+      {
+        "box": {
+          "id": "descriptionkeys",
+          "maxclass": "newobj",
+          "patching_rect": [
+            270,
+            810,
+            250,
+            22
+          ],
+          "text": "deferlow"
+        }
+      },
+      {
+        "box": {
+          "id": "descriptionbang",
+          "maxclass": "newobj",
+          "patching_rect": [
+            520,
+            810,
+            250,
+            22
+          ],
+          "text": "t b"
+        }
+      },
+      {
+        "box": {
+          "id": "libraryrestore",
+          "maxclass": "newobj",
+          "patching_rect": [
+            1000,
+            585,
+            250,
+            22
+          ],
+          "text": "prepend set"
+        }
+      },
+      {
+        "box": {
+          "id": "scoperestore",
+          "maxclass": "newobj",
+          "patching_rect": [
+            1250,
+            585,
+            250,
+            22
+          ],
+          "text": "prepend set"
         }
       },
       {
@@ -528,9 +749,9 @@
           "id": "start",
           "maxclass": "textbutton",
           "patching_rect": [
-            574,
-            25,
-            132,
+            430,
+            22,
+            115,
             25
           ],
           "active": 1,
@@ -546,9 +767,9 @@
           "text": "Start companion",
           "presentation": 1,
           "presentation_rect": [
-            574,
-            25,
-            132,
+            430,
+            22,
+            115,
             25
           ]
         }
@@ -558,8 +779,8 @@
           "id": "startcmd",
           "maxclass": "message",
           "patching_rect": [
-            574,
-            452,
+            430,
+            536,
             100,
             22
           ],
@@ -571,7 +792,7 @@
           "id": "starttrigger",
           "maxclass": "newobj",
           "patching_rect": [
-            574,
+            430,
             230,
             250,
             22
@@ -584,9 +805,9 @@
           "id": "init",
           "maxclass": "textbutton",
           "patching_rect": [
-            717,
-            25,
-            132,
+            555,
+            22,
+            115,
             25
           ],
           "active": 0,
@@ -602,9 +823,9 @@
           "text": "Initialise library",
           "presentation": 1,
           "presentation_rect": [
-            717,
-            25,
-            132,
+            555,
+            22,
+            115,
             25
           ]
         }
@@ -614,8 +835,8 @@
           "id": "initcmd",
           "maxclass": "message",
           "patching_rect": [
-            717,
-            470,
+            555,
+            554,
             100,
             22
           ],
@@ -627,7 +848,7 @@
           "id": "inittrigger",
           "maxclass": "newobj",
           "patching_rect": [
-            717,
+            555,
             230,
             250,
             22
@@ -640,121 +861,9 @@
           "id": "stop",
           "maxclass": "textbutton",
           "patching_rect": [
-            860,
-            25,
+            680,
+            22,
             50,
-            25
-          ],
-          "active": 1,
-          "mode": 0,
-          "parameter_enable": 0,
-          "numinlets": 1,
-          "numoutlets": 3,
-          "outlettype": [
-            "",
-            "",
-            "int"
-          ],
-          "text": "Stop",
-          "presentation": 1,
-          "presentation_rect": [
-            860,
-            25,
-            50,
-            25
-          ]
-        }
-      },
-      {
-        "box": {
-          "id": "stopcmd",
-          "maxclass": "message",
-          "patching_rect": [
-            860,
-            488,
-            100,
-            22
-          ],
-          "text": "stop"
-        }
-      },
-      {
-        "box": {
-          "id": "stoptrigger",
-          "maxclass": "newobj",
-          "patching_rect": [
-            860,
-            230,
-            250,
-            22
-          ],
-          "text": "t b"
-        }
-      },
-      {
-        "box": {
-          "id": "refresh",
-          "maxclass": "textbutton",
-          "patching_rect": [
-            574,
-            61,
-            132,
-            25
-          ],
-          "active": 1,
-          "mode": 0,
-          "parameter_enable": 0,
-          "numinlets": 1,
-          "numoutlets": 3,
-          "outlettype": [
-            "",
-            "",
-            "int"
-          ],
-          "text": "Refresh projects",
-          "presentation": 1,
-          "presentation_rect": [
-            574,
-            61,
-            132,
-            25
-          ]
-        }
-      },
-      {
-        "box": {
-          "id": "refreshcmd",
-          "maxclass": "message",
-          "patching_rect": [
-            574,
-            506,
-            100,
-            22
-          ],
-          "text": "refresh"
-        }
-      },
-      {
-        "box": {
-          "id": "refreshtrigger",
-          "maxclass": "newobj",
-          "patching_rect": [
-            574,
-            230,
-            250,
-            22
-          ],
-          "text": "t b"
-        }
-      },
-      {
-        "box": {
-          "id": "snapshot",
-          "maxclass": "textbutton",
-          "patching_rect": [
-            574,
-            94,
-            132,
             25
           ],
           "active": 0,
@@ -767,40 +876,96 @@
             "",
             "int"
           ],
-          "text": "Snapshot",
+          "text": "Stop",
           "presentation": 1,
           "presentation_rect": [
-            574,
-            94,
-            132,
+            680,
+            22,
+            50,
             25
           ]
         }
       },
       {
         "box": {
-          "id": "snapshotcmd",
+          "id": "stopcmd",
           "maxclass": "message",
           "patching_rect": [
-            574,
-            524,
+            680,
+            572,
             100,
             22
           ],
-          "text": "snapshot"
+          "text": "stop"
         }
       },
       {
         "box": {
-          "id": "snapshottrigger",
+          "id": "stoptrigger",
           "maxclass": "newobj",
           "patching_rect": [
-            574,
+            680,
             230,
             250,
             22
           ],
-          "text": "t b b b"
+          "text": "t b"
+        }
+      },
+      {
+        "box": {
+          "id": "refresh",
+          "maxclass": "textbutton",
+          "patching_rect": [
+            740,
+            22,
+            180,
+            25
+          ],
+          "active": 0,
+          "mode": 0,
+          "parameter_enable": 0,
+          "numinlets": 1,
+          "numoutlets": 3,
+          "outlettype": [
+            "",
+            "",
+            "int"
+          ],
+          "text": "Refresh projects",
+          "presentation": 1,
+          "presentation_rect": [
+            740,
+            22,
+            180,
+            25
+          ]
+        }
+      },
+      {
+        "box": {
+          "id": "refreshcmd",
+          "maxclass": "message",
+          "patching_rect": [
+            740,
+            590,
+            100,
+            22
+          ],
+          "text": "refresh"
+        }
+      },
+      {
+        "box": {
+          "id": "refreshtrigger",
+          "maxclass": "newobj",
+          "patching_rect": [
+            740,
+            230,
+            250,
+            22
+          ],
+          "text": "t b"
         }
       },
       {
@@ -808,9 +973,9 @@
           "id": "push",
           "maxclass": "textbutton",
           "patching_rect": [
-            717,
-            94,
-            132,
+            745,
+            50,
+            175,
             25
           ],
           "active": 0,
@@ -826,9 +991,9 @@
           "text": "Push",
           "presentation": 1,
           "presentation_rect": [
-            717,
-            94,
-            132,
+            745,
+            50,
+            175,
             25
           ]
         }
@@ -838,8 +1003,8 @@
           "id": "pushcmd",
           "maxclass": "message",
           "patching_rect": [
-            717,
-            542,
+            745,
+            608,
             100,
             22
           ],
@@ -851,32 +1016,81 @@
           "id": "pushtrigger",
           "maxclass": "newobj",
           "patching_rect": [
-            717,
+            745,
             230,
             250,
             22
           ],
-          "text": "t b"
+          "text": "t b b b"
         }
       },
       {
         "box": {
-          "id": "pushlabel",
-          "maxclass": "comment",
+          "id": "gitstatusactive",
+          "maxclass": "newobj",
           "patching_rect": [
-            717,
-            61,
-            197,
-            20
+            1250,
+            660,
+            250,
+            22
           ],
-          "text": "Push uploads all committed projects",
+          "text": "prepend active"
+        }
+      },
+      {
+        "box": {
+          "id": "gitstatus",
+          "maxclass": "textbutton",
+          "patching_rect": [
+            820,
+            112,
+            100,
+            25
+          ],
+          "active": 1,
+          "mode": 0,
+          "parameter_enable": 0,
+          "numinlets": 1,
+          "numoutlets": 3,
+          "outlettype": [
+            "",
+            "",
+            "int"
+          ],
+          "text": "Git status",
           "presentation": 1,
           "presentation_rect": [
-            717,
-            61,
-            197,
-            20
+            820,
+            112,
+            100,
+            25
           ]
+        }
+      },
+      {
+        "box": {
+          "id": "gitstatuscmd",
+          "maxclass": "message",
+          "patching_rect": [
+            820,
+            632,
+            100,
+            22
+          ],
+          "text": "gitstatus"
+        }
+      },
+      {
+        "box": {
+          "id": "gitstatustrigger",
+          "maxclass": "newobj",
+          "patching_rect": [
+            820,
+            230,
+            250,
+            22
+          ],
+          "text": "t b b b"
         }
       },
       {
@@ -928,7 +1142,20 @@
             70,
             22
           ],
-          "text": "set 0"
+          "text": "set 1"
+        }
+      },
+      {
+        "box": {
+          "id": "filecolumns",
+          "maxclass": "message",
+          "patching_rect": [
+            930,
+            900,
+            230,
+            22
+          ],
+          "text": "col 0 width 45, col 1 width 850"
         }
       }
     ],
@@ -1045,6 +1272,30 @@
         "patchline": {
           "source": [
             "route",
+            15
+          ],
+          "destination": [
+            "set15",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "set15",
+            0
+          ],
+          "destination": [
+            "filesummary",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
             2
           ],
           "destination": [
@@ -1073,6 +1324,198 @@
           ],
           "destination": [
             "mutations",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            8
+          ],
+          "destination": [
+            "startactive",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            9
+          ],
+          "destination": [
+            "stopactive",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            10
+          ],
+          "destination": [
+            "initactive",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            11
+          ],
+          "destination": [
+            "pushactive",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            12
+          ],
+          "destination": [
+            "snapshotactive",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            13
+          ],
+          "destination": [
+            "refreshactive",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            14
+          ],
+          "destination": [
+            "filelist",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            16
+          ],
+          "destination": [
+            "descriptionclear",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "descriptionclear",
+            0
+          ],
+          "destination": [
+            "description",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "description",
+            1
+          ],
+          "destination": [
+            "descriptionkeys",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "descriptionkeys",
+            0
+          ],
+          "destination": [
+            "descriptionbang",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "descriptionbang",
+            0
+          ],
+          "destination": [
+            "description",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            17
+          ],
+          "destination": [
+            "libraryrestore",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "libraryrestore",
+            0
+          ],
+          "destination": [
+            "library",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            18
+          ],
+          "destination": [
+            "scoperestore",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "scoperestore",
+            0
+          ],
+          "destination": [
+            "scope",
             0
           ]
         }
@@ -1392,7 +1835,7 @@
       {
         "patchline": {
           "source": [
-            "active",
+            "startactive",
             0
           ],
           "destination": [
@@ -1440,7 +1883,7 @@
       {
         "patchline": {
           "source": [
-            "mutations",
+            "initactive",
             0
           ],
           "destination": [
@@ -1488,7 +1931,7 @@
       {
         "patchline": {
           "source": [
-            "active",
+            "stopactive",
             0
           ],
           "destination": [
@@ -1536,7 +1979,7 @@
       {
         "patchline": {
           "source": [
-            "active",
+            "refreshactive",
             0
           ],
           "destination": [
@@ -1548,11 +1991,11 @@
       {
         "patchline": {
           "source": [
-            "snapshot",
+            "push",
             1
           ],
           "destination": [
-            "snapshottrigger",
+            "pushtrigger",
             0
           ]
         }
@@ -1560,7 +2003,7 @@
       {
         "patchline": {
           "source": [
-            "snapshottrigger",
+            "pushtrigger",
             2
           ],
           "destination": [
@@ -1572,7 +2015,7 @@
       {
         "patchline": {
           "source": [
-            "snapshottrigger",
+            "pushtrigger",
             1
           ],
           "destination": [
@@ -1584,11 +2027,11 @@
       {
         "patchline": {
           "source": [
-            "snapshottrigger",
+            "pushtrigger",
             0
           ],
           "destination": [
-            "snapshotcmd",
+            "pushcmd",
             0
           ]
         }
@@ -1596,7 +2039,7 @@
       {
         "patchline": {
           "source": [
-            "snapshotcmd",
+            "pushcmd",
             0
           ],
           "destination": [
@@ -1608,11 +2051,11 @@
       {
         "patchline": {
           "source": [
-            "mutations",
+            "pushactive",
             0
           ],
           "destination": [
-            "snapshot",
+            "push",
             0
           ]
         }
@@ -1620,11 +2063,23 @@
       {
         "patchline": {
           "source": [
-            "push",
+            "notbusy",
+            0
+          ],
+          "destination": [
+            "gitstatusactive",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "gitstatus",
             1
           ],
           "destination": [
-            "pushtrigger",
+            "gitstatustrigger",
             0
           ]
         }
@@ -1632,11 +2087,35 @@
       {
         "patchline": {
           "source": [
-            "pushtrigger",
+            "gitstatustrigger",
+            2
+          ],
+          "destination": [
+            "description",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "gitstatustrigger",
+            1
+          ],
+          "destination": [
+            "library",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "gitstatustrigger",
             0
           ],
           "destination": [
-            "pushcmd",
+            "gitstatuscmd",
             0
           ]
         }
@@ -1644,7 +2123,7 @@
       {
         "patchline": {
           "source": [
-            "pushcmd",
+            "gitstatuscmd",
             0
           ],
           "destination": [
@@ -1656,11 +2135,11 @@
       {
         "patchline": {
           "source": [
-            "mutations",
+            "gitstatusactive",
             0
           ],
           "destination": [
-            "push",
+            "gitstatus",
             0
           ]
         }
@@ -1712,6 +2191,30 @@
             0
           ]
         }
+      },
+      {
+        "patchline": {
+          "source": [
+            "defaults",
+            0
+          ],
+          "destination": [
+            "filecolumns",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "filecolumns",
+            0
+          ],
+          "destination": [
+            "filelist",
+            0
+          ]
+        }
       }
     ],
     "dependency_cache": [
@@ -1723,6 +2226,12 @@
       },
       {
         "name": "client.js",
+        "bootpath": ".",
+        "type": "TEXT",
+        "implicit": 1
+      },
+      {
+        "name": "preferences.js",
         "bootpath": ".",
         "type": "TEXT",
         "implicit": 1

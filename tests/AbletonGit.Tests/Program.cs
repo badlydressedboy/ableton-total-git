@@ -539,6 +539,89 @@ Test("Snapshot API validates explicit scopes", async () =>
     }
     finally { await app.StopAsync(); await app.DisposeAsync(); }
 });
+Test("read-only library preview matches scoped commits, generated reports and deletions", async () =>
+{
+    using var p = new Fixture(); var root = Path.GetDirectoryName(p.Root)!;
+    var sibling = Path.Combine(root, "Second Project"); Directory.CreateDirectory(Path.Combine(sibling, "Ableton Project Info"));
+    File.Copy(p.Set, Path.Combine(sibling, "Second.als"));
+    var library = new LibraryService(git, reader, new());
+    Check((await library.UiStateAsync(root, default)).CanInitialize, "new library can initialise");
+    await library.InitAsync(root, default); await p.Identity(runner);
+    Check((await library.UiStateAsync(root, default)).Initialized && !(await library.UiStateAsync(root, default)).CanInitialize, "initialised library disables Init");
+    var project = ProjectDiscovery.Relative(root, p.Root);
+    var baseline = await runner.RunAsync("git", ["status", "--porcelain=v1", "-z", "--untracked-files=all"], root);
+    var disk = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories).ToDictionary(f => f, File.ReadAllBytes);
+    var first = await library.PreviewAsync(root, project, default);
+    Check(first.Count == first.Files.Count && first.Files.All(f => !f.Path.StartsWith("Second Project", StringComparison.Ordinal)), "first preview scoped");
+    Check(disk.All(f => File.ReadAllBytes(f.Key).SequenceEqual(f.Value)), "preview changes no files including index/objects");
+    Check((await runner.RunAsync("git", ["status", "--porcelain=v1", "-z", "--untracked-files=all"], root)).Output == baseline.Output, "index/worktree unchanged");
+    var committed = await library.SnapshotProjectAsync(root, project, "Scoped", false, default);
+    Check(first.Files.Select(f => f.Path).SequenceEqual(committed.Files.Select(f => f.Path)), "first preview equals commit files");
+    Check((await library.PreviewAsync(root, project, default)).Count == 0, "clean scoped preview despite uncommitted sibling");
+    await library.SnapshotAsync(root, "Sibling", false, default);
+    await p.Save(Fixture.Xml().Replace("Bass Clean", "Preview variation"));
+    await File.WriteAllTextAsync(Path.Combine(p.Root, "Desktop.ini"), "excluded");
+    await File.WriteAllTextAsync(Path.Combine(p.Root, "notes.txt"), "excluded");
+    var catalog = Path.Combine(root, ".abletongit", "library.json"); var oldCatalog = await File.ReadAllTextAsync(catalog);
+    var changed = await library.PreviewAsync(root, project, default);
+    Check(changed.Files.Any(f => f.Path == ".abletongit/library.json") && changed.Files.Any(f => f.Path.EndsWith("clips.md")), "virtual generated reports included");
+    Check(!changed.Files.Any(f => f.Path.EndsWith("Desktop.ini") || f.Path.EndsWith("notes.txt")), "excluded files absent");
+    Check(await File.ReadAllTextAsync(catalog) == oldCatalog && !await git.HasStagedAsync(root, default), "virtual reports not written/staged");
+    var actual = await library.SnapshotProjectAsync(root, project, "Variation", false, default);
+    Check(changed.Files.Select(f => f.Path).SequenceEqual(actual.Files.Select(f => f.Path)), "changed preview equals commit files");
+    File.Delete(p.Set);
+    var removed = await library.PreviewAsync(root, project, default);
+    Check(removed.Files.Any(f => f.Path.EndsWith("clips.md") && f.State.Contains('D')), "stale reports previewed as deletions");
+    var deleted = await library.SnapshotProjectAsync(root, project, "Removed", false, default);
+    Check(removed.Files.Select(f => f.Path).SequenceEqual(deleted.Files.Select(f => f.Path)), "deletion preview equals commit files");
+});
+Test("preview restores generated reports to committed content without false changes", async () =>
+{
+    using var p = new Fixture(); var service = Service(); await service.InitAsync(p.Root, default); await p.Identity(runner);
+    await service.SnapshotAsync(p.Root, "Initial", false, default);
+    var report = Path.Combine(p.Root, ".abletongit", "tracks.md"); await File.WriteAllTextAsync(report, "tampered report");
+    Check((await service.PreviewAsync(p.Root, default)).Count == 0, "regenerated report equals HEAD, no false preview change");
+    Check(await File.ReadAllTextAsync(report) == "tampered report", "preview read-only");
+    await p.Save(Fixture.Xml().Replace("Bass Notes", "Preview Notes"));
+    var preview = await service.PreviewAsync(p.Root, default); var actual = await service.SnapshotAsync(p.Root, "Changed", false, default);
+    Check(preview.Files.Select(f => f.Path).SequenceEqual(actual.Files.Select(f => f.Path).Order(StringComparer.Ordinal)), "single project preview matches commit");
+});
+Test("UI Push availability follows local commits and configured upstream", async () =>
+{
+    using var p = new Fixture(); var service = Service(); await service.InitAsync(p.Root, default); await p.Identity(runner);
+    Check(!(await service.UiStateAsync(p.Root, default)).CanPush, "no commits/remote disables Push");
+    await service.SnapshotAsync(p.Root, "Initial", false, default);
+    var remote = Path.Combine(Path.GetDirectoryName(p.Root)!, "remote.git");
+    Check((await runner.RunAsync("git", ["init", "--bare", remote], p.Root)).ExitCode == 0, "bare remote");
+    await p.Git(runner, "remote", "add", "origin", remote);
+    Check(!(await service.UiStateAsync(p.Root, default)).CanPush, "no upstream disables Push");
+    await p.Git(runner, "push", "-u", "origin", "main");
+    Check(!(await service.UiStateAsync(p.Root, default)).CanPush, "up-to-date disables Push");
+    await p.Save(Fixture.Xml().Replace("Bass Notes", "Ahead Notes"));
+    await service.SnapshotAsync(p.Root, "Ahead", false, default);
+    Check((await service.UiStateAsync(p.Root, default)).CanPush, "ahead enables Push");
+    await service.PushAsync(p.Root, default);
+    Check(!(await service.UiStateAsync(p.Root, default)).CanPush, "successful Push disables Push");
+});
+Test("preview API authenticates and validates scope before any changes", async () =>
+{
+    using var p = new Fixture(); var root = Path.GetDirectoryName(p.Root)!; var library = new LibraryService(git, reader, new());
+    await library.InitAsync(root, default); var token = new string('A', 64); var app = ApiHost.Create(root, token, 0, true);
+    await app.StartAsync();
+    try
+    {
+        var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
+        using var client = new HttpClient { BaseAddress = new Uri(address) };
+        Check((await client.GetAsync("/api/preview?scope=all")).StatusCode == HttpStatusCode.Unauthorized, "authenticated preview");
+        client.DefaultRequestHeaders.Add("X-AbletonGit-Token", token);
+        Check((await client.GetFromJsonAsync<CompanionUiState>("/api/ui-state"))!.Initialized, "UI state endpoint");
+        foreach (var query in new[] { "scope=bad", "scope=project", "scope=project&project=../outside", "scope=all&project=other" })
+            Check((await client.GetAsync("/api/preview?" + query)).StatusCode == HttpStatusCode.BadRequest, "bad preview scope: " + query);
+        var preview = await client.GetFromJsonAsync<SnapshotPreview>("/api/preview?scope=all");
+        Check(preview!.Count > 0 && !await git.HasStagedAsync(root, default) && (await git.HistoryAsync(root, default)).Count == 0, "preview reads without committing");
+    }
+    finally { await app.StopAsync(); await app.DisposeAsync(); }
+});
 Test("library rejects nested repositories before mutation", async () =>
 {
     using var p = new Fixture(); var root = Path.GetDirectoryName(p.Root)!; await git.InitializeAsync(p.Root, default);

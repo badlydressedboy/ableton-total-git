@@ -10,7 +10,7 @@ const published = spawnSync("dotnet", ["publish", "src/AbletonGit.Api", "-c", "R
     { cwd: root, stdio: "inherit", shell: false, windowsHide: true });
 if (published.error) throw published.error;
 if (published.status !== 0) process.exit(published.status || 1);
-for (const name of ["Ableton Git.maxpat", "device.js", "client.js"]) fs.copyFileSync(path.join(__dirname, name), path.join(destination, name));
+for (const name of ["Ableton Git.maxpat", "device.js", "client.js", "preferences.js"]) fs.copyFileSync(path.join(__dirname, name), path.join(destination, name));
 fs.copyFileSync(path.join(destination, "Ableton Git.maxpat"), path.join(destination, "AbletonGit-FULL-53-objects.maxpat"));
 fs.copyFileSync(path.join(root, "docs", "max-for-live.md"), path.join(destination, "README.md"));
 console.log("M4L source and companion package: " + destination);

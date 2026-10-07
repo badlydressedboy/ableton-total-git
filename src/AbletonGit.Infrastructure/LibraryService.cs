@@ -225,11 +225,12 @@ public sealed class LibraryService(IGitRepository git, ISetReader reader, Metada
     private async Task<LibraryAnalysis> Write(string root, LibraryModel model, CancellationToken ct, string? project = null, LibraryModel? scopedPrevious = null)
     {
         var generated = await Generated(root, model, ct, project, scopedPrevious);
-        var groups = generated.GroupBy(p => Path.GetDirectoryName(p.Key)).ToList();
+        var groups = generated.Where(p => p.Key != Catalog).GroupBy(p => Path.GetDirectoryName(p.Key)).ToList();
         var results = new IReadOnlyList<string>[groups.Count];
         await Parallel.ForEachAsync(Enumerable.Range(0, groups.Count), new ParallelOptions { MaxDegreeOfParallelism = MaxParallelProjects, CancellationToken = ct }, async (i, token) =>
             results[i] = await metadata.ApplyAsync(root, groups[i].ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal), token));
-        return new(model, results.SelectMany(r => r).Order(StringComparer.Ordinal).ToList());
+        var catalogChanges = await metadata.ApplyAsync(root, new Dictionary<string, string?> { [Catalog] = generated[Catalog] }, ct);
+        return new(model, results.SelectMany(r => r).Concat(catalogChanges).Order(StringComparer.Ordinal).ToList());
     }
     private static async Task<IReadOnlyDictionary<string, string?>> Generated(string root, LibraryModel model, CancellationToken ct, string? project, LibraryModel? scopedPrevious)
     {

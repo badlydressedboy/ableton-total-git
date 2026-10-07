@@ -31,7 +31,7 @@ public sealed class GitRepository(IProcessRunner runner) : IGitRepository
     public async Task<RepositoryState> StateAsync(string directory, CancellationToken ct)
     {
         if (await RootAsync(directory, ct) is null) return new(false, null, null, null, null, null, [], null);
-        var status = await Require(directory, ct, "status", "--porcelain=v1", "-z", "--untracked-files=all");
+        var status = await Require(directory, ct, "--no-optional-locks", "status", "--porcelain=v1", "-z", "--untracked-files=all");
         var tokens = status.Split('\0', StringSplitOptions.RemoveEmptyEntries);
         var changes = new List<FileChange>();
         for (var i = 0; i < tokens.Length; i++)
