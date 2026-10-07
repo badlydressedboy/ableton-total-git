@@ -14,7 +14,8 @@ function wire(from, outlet, to, inlet = 0) { lines.push({ patchline: { source: [
 function obj(id, text, x, y) { return box(id, "newobj", text, [x, y, 250, 22]); }
 function label(id, text, x, y, width) { return box(id, "comment", text, [x, y, width, 20], true); }
 function button(id, caption, command, x, y, width, fields = false) {
-    box(id, "textbutton", caption, [x, y, width, 25], true, { mode: 0, parameter_enable: 0, numinlets: 1, numoutlets: 3, outlettype: ["", "", "int"] });
+    const guarded = ["snapshot", "push", "init"].includes(id);
+    box(id, "textbutton", caption, [x, y, width, 25], true, { active: guarded ? 0 : 1, mode: 0, parameter_enable: 0, numinlets: 1, numoutlets: 3, outlettype: ["", "", "int"] });
     box(id + "cmd", "message", command, [x, 260 + boxes.length * 6, 100, 22]);
     if (fields) {
         obj(id + "trigger", "t b b b", x, 230);
@@ -27,7 +28,7 @@ function button(id, caption, command, x, y, width, fields = false) {
         wire(id, 1, id + "trigger"); wire(id + "trigger", 0, id + "cmd");
     }
     wire(id + "cmd", 0, "node");
-    wire("active", 0, id);
+    wire(guarded ? "mutations" : "active", 0, id);
 }
 label("title", "ABLETON GIT   •   Save in Live before Snapshot", 8, 2, 750);
 label("librarylabel", "Library folder", 8, 29, 86);
@@ -40,7 +41,7 @@ box("scope", "umenu", null, [414, 61, 149, 25], true, { items: ["Current project
 label("warning", "Select the project you want to Snapshot. Save in Live first.", 8, 122, 880);
 label("status", "Enter library folder, then Start companion.", 8, 145, 880);
 obj("node", "node.script device.js @autostart 1 @defer 1", 8, 500);
-obj("route", "route status warning busy projectclear projectitem projectselect detail", 8, 550);
+obj("route", "route status warning busy projectclear projectitem projectselect detail mutations", 8, 550);
 wire("node", 0, "route");
 for (const [outlet, target] of [[0, "status"], [1, "warning"], [6, "warning"]]) {
     obj("set" + outlet, "prepend set", 8 + outlet * 100, 585);
@@ -48,6 +49,7 @@ for (const [outlet, target] of [[0, "status"], [1, "warning"], [6, "warning"]]) 
 }
 obj("notbusy", "== 0", 220, 630); obj("active", "prepend active", 220, 660);
 wire("route", 2, "notbusy"); wire("notbusy", 0, "active");
+obj("mutations", "prepend active", 740, 660); wire("route", 7, "mutations");
 obj("ignore", "prepend sendbox ignoreclick", 460, 660); wire("route", 2, "ignore");
 for (const id of ["library", "description", "project", "scope"]) wire("ignore", 0, id);
 box("clear", "message", "clear", [320, 585, 60, 22]); wire("route", 3, "clear"); wire("clear", 0, "project");

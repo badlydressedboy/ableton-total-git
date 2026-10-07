@@ -72,6 +72,7 @@ Listens only at `http://127.0.0.1:17831` (`--port` can change the port). Startup
 | Method | Route | Result / body |
 | --- | --- | --- |
 | GET | `/api/status` | Structured status |
+| GET | `/api/tools` | Git/Git LFS availability checks, without project parsing or writes |
 | GET | `/api/project` | Fresh read-only semantic model |
 | GET | `/api/projects` | Project choices and whether library scope is available |
 | GET | `/api/history` | Recent Snapshots |

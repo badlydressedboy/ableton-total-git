@@ -28,7 +28,7 @@ Keep the device **unfrozen** and keep its external files beside it. Moving only 
 
 ## Everyday use
 
-1. Enter the full **parent library folder** path, then click **Start companion**. Use one device/companion instance per library. The device launches a hidden companion process and obtains its fresh token in memory; it never saves the token in the Set or prints it to the Max console. Port `17831` must be free.
+1. Enter the full **parent library folder** path, then click **Start companion**. Before showing Ready, the companion checks that `git --version` and `git lfs version` succeed in its process environment. Initialise, Snapshot and Push remain disabled until both checks pass, and are disabled again when the companion stops. Missing tools show installation/PATH guidance; after installing tools or changing PATH, restart Live and the companion. **Refresh projects** also checks tools again. Use one device/companion instance per library. The device launches a hidden companion process and obtains its fresh token in memory; it never saves the token in the Set or prints it to the Max console. Port `17831` must be free.
 2. Click **Initialise library** once for a new library. This creates the parent Git repository if needed, installs local LFS rules and generates reports. Existing nested project repositories are refused; migration remains a separate task.
 3. Select the intended project in the project dropdown. **Current project means this explicit selection**, not automatic detection of Live's open Set. It includes every saved Set and eligible local audio in that project.
 4. Save in Live; use Collect All and Save when needed. Enter a description and click **Snapshot**. To Snapshot the whole library, change the adjacent scope dropdown to **All projects**. The warning updates to make that scope visible. Scope starts at Current project when the device loads.
@@ -41,6 +41,8 @@ No automatic Save, Collect All, open-Set detection, restore, remote setup or Git
 ## API scope and committed baselines
 
 `GET /api/projects` returns `{ all, projects: [{ path, name }] }`; library project paths are repository-relative identifiers. `POST /api/init` initialises the configured root. The host root and mode are fixed at companion startup and cannot be overridden by HTTP requests.
+
+`GET /api/tools` returns `{ ready, checks: [{ level, message }] }` in either mode. It checks Git and Git LFS directly through the companion's typed Git adapter, without a shell, project parsing, repository initialisation or network access. Both missing executables and nonzero version commands produce `ready: false` with friendly repair guidance. The endpoint uses the same local token and loopback restrictions as other requests. These checks establish executable availability; Git identity, repository state, LFS configuration and remote authentication are checked by the operations that require them.
 
 Project Snapshot:
 

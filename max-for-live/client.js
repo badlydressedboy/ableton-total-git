@@ -7,12 +7,27 @@ class Client {
         this.emit = emit;
         this.transport = transport || this.http.bind(this);
         this.token = null;
+        this.toolsReady = false;
         this.busy = false;
         this.projects = [];
         this.project = null;
         this.all = false;
         this.scope = "project";
         this.message = "";
+        this.updateControls();
+    }
+    updateControls() { this.emit("mutations", this.token && this.toolsReady && !this.busy ? 1 : 0); }
+    disconnect() { this.token = null; this.toolsReady = false; this.updateControls(); }
+    requireTools() {
+        if (!this.token) throw new Error("Start the companion first.");
+        if (!this.toolsReady) throw new Error("Git and Git LFS must pass the startup check. Use Refresh projects to check again.");
+    }
+    async checkTools() {
+        this.toolsReady = false; this.updateControls();
+        this.emit("status", "Checking Git and Git LFS...");
+        const result = await this.transport("GET", "/api/tools");
+        if (result.ready !== true) throw new Error(result.checks.filter(c => c.level !== "PASS").map(c => c.message).join(" | ") || "Git/Git LFS check failed.");
+        this.toolsReady = true; this.updateControls();
     }
     http(method, endpoint, body) {
         return new Promise((resolve, reject) => {
@@ -41,10 +56,10 @@ class Client {
     }
     async run(action) {
         if (this.busy) return false;
-        this.busy = true; this.emit("busy", 1);
+        this.busy = true; this.emit("busy", 1); this.updateControls();
         try { await action(); return true; }
         catch (error) { this.emit("status", error.message); return false; }
-        finally { this.busy = false; this.emit("busy", 0); }
+        finally { this.busy = false; this.emit("busy", 0); this.updateControls(); }
     }
     async refresh() {
         const result = await this.transport("GET", "/api/projects");
@@ -64,7 +79,7 @@ class Client {
     }
     snapshot() {
         return this.run(async () => {
-            if (!this.token) throw new Error("Start the companion first.");
+            this.requireTools();
             if (!this.message.trim()) throw new Error("Enter a Snapshot description.");
             if (this.scope === "all" && !this.all) throw new Error("All projects requires a library companion.");
             if (this.scope === "project" && !this.project) throw new Error("Choose the project you want to Snapshot.");
@@ -78,7 +93,7 @@ class Client {
     }
     push() {
         return this.run(async () => {
-            if (!this.token) throw new Error("Start the companion first.");
+            this.requireTools();
             this.emit("status", "Pushing repository history...");
             await this.transport("POST", "/api/push");
             this.emit("status", "Push complete.");
@@ -86,7 +101,7 @@ class Client {
     }
     init() {
         return this.run(async () => {
-            if (!this.token) throw new Error("Start the companion first.");
+            this.requireTools();
             this.emit("status", "Initialising library and Git LFS...");
             await this.transport("POST", "/api/init");
             this.emit("status", "Library initialised. Choose a project and Snapshot.");

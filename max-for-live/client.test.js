@@ -17,7 +17,7 @@ test("project selection is explicit; scope sends only intended API fields", asyn
         return args[0] === "GET" ? { all: true, projects: [{ path: "Dub 音", name: "Dub 音" }] } :
             { created: true, hash: "abcdef0123456789", warnings: [] };
     });
-    client.token = "A".repeat(64); client.message = "Bass variation";
+    client.token = "A".repeat(64); client.toolsReady = true; client.message = "Bass variation";
     await client.refresh();
     assert.equal(await client.snapshot(), false);
     assert.equal(requests.length, 1);
@@ -30,7 +30,7 @@ test("project selection is explicit; scope sends only intended API fields", asyn
 test("busy blocks repeated clicks and scope changes; failure unlocks controls", async () => {
     let finish, calls = 0;
     const client = new Client(() => {}, () => { calls++; return new Promise(resolve => { finish = resolve; }); });
-    client.token = "token"; client.message = "Description"; client.project = "Dub";
+    client.token = "token"; client.toolsReady = true; client.message = "Description"; client.project = "Dub";
     const pending = client.snapshot();
     assert.equal(await client.snapshot(), false); assert.equal(await client.push(), false);
     client.selectScope(1); client.select(0); assert.equal(client.scope, "project"); assert.equal(client.project, "Dub");
@@ -41,7 +41,7 @@ test("busy blocks repeated clicks and scope changes; failure unlocks controls", 
 });
 test("removed project is cleared and single mode rejects all scope", async () => {
     const client = new Client(() => {}, async () => ({ all: false, projects: [] }));
-    client.token = "token"; client.project = "Removed"; client.message = "Description";
+    client.token = "token"; client.toolsReady = true; client.project = "Removed"; client.message = "Description";
     await client.refresh(); assert.equal(client.project, null);
     client.selectScope(1); assert.equal(await client.snapshot(), false);
 });
@@ -55,7 +55,7 @@ test("real loopback transport uses token and reports structured server errors", 
     await new Promise(resolve => server.listen(17831, "127.0.0.1", resolve));
     try {
         const events = [], client = new Client((...e) => events.push(e));
-        client.token = "A".repeat(64); client.project = "Dub"; client.message = "Saved";
+        client.token = "A".repeat(64); client.toolsReady = true; client.project = "Dub"; client.message = "Saved";
         assert.equal(await client.snapshot(), false);
         assert(events.some(e => e[0] === "status" && e[1] === "Run Init first."));
     } finally { await new Promise(resolve => server.close(resolve)); }
@@ -68,8 +68,63 @@ test("patch wires every action to Node, passes audio through and defaults projec
         assert(patch.lines.some(l => l.patchline.source[0] === id + "cmd" && l.patchline.destination[0] === "node"));
     assert.equal(patch.lines.filter(l => l.patchline.source[0] === "audioin" && l.patchline.destination[0] === "audioout").length, 2);
     assert.equal(patch.boxes.find(b => b.box.id === "scope").box.items[0], "Current project");
+    for (const id of ["snapshot", "push", "init"]) {
+        assert.equal(patch.boxes.find(b => b.box.id === id).box.active, 0);
+        assert(patch.lines.some(l => l.patchline.source[0] === "mutations" && l.patchline.destination[0] === id));
+        assert(!patch.lines.some(l => l.patchline.source[0] === "active" && l.patchline.destination[0] === id));
+    }
+});
+test("startup preflight gates writes, reports failures and supports recovery", async () => {
+    const requests = [], events = []; let available = false;
+    const client = new Client((...e) => events.push(e), async (method, endpoint) => {
+        requests.push([method, endpoint]);
+        return { ready: available, checks: [{ level: available ? "PASS" : "FAIL", message: "Install Git LFS and restart Live." }] };
+    });
+    client.token = "token"; client.message = "Saved"; client.project = "Dub";
+    assert.equal(await client.snapshot(), false);
+    assert.equal(await client.push(), false); assert.equal(await client.init(), false);
+    assert.equal(requests.length, 0); assert.equal(events.at(-1)[1], 0);
+    assert.equal(await client.run(() => client.checkTools()), false);
+    assert(events.some(e => e[0] === "status" && e[1].includes("Install Git LFS")));
+    assert.equal(client.toolsReady, false); assert.equal(events.at(-1)[1], 0);
+    available = true;
+    assert.equal(await client.run(() => client.checkTools()), true);
+    assert.equal(client.toolsReady, true); assert.deepEqual(events.at(-1), ["mutations", 1]);
+    client.transport = async () => { throw new Error("Companion disconnected"); };
+    assert.equal(await client.run(() => client.checkTools()), false);
+    assert.equal(client.toolsReady, false); assert.deepEqual(events.at(-1), ["mutations", 0]);
+    client.toolsReady = true; client.disconnect();
+    assert.equal(client.token, null); assert.equal(client.toolsReady, false);
+    assert(requests.every(r => r[0] === "GET" && r[1] === "/api/tools"));
 });
 const packagePath = path.resolve(__dirname, "../artifacts/max-for-live");
+test("device startup with no Git on PATH reports repair guidance and keeps writes disabled", {
+    skip: !fs.existsSync(path.join(packagePath, "companion/AbletonGit.Api.exe"))
+}, async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "AbletonGit-missing-tools-"));
+    const handlers = new Map(), events = [];
+    const mock = { addHandler: (name, handler) => handlers.set(name, handler), outlet: (...args) => events.push(args) };
+    const filename = path.join(packagePath, "device.js"), localRequire = createRequire(filename);
+    const processes = require("node:child_process");
+    const load = new Function("require", "__dirname", "module", "exports", fs.readFileSync(filename, "utf8"));
+    load(name => name === "max-api" ? mock : name === "child_process" ? {
+        spawn: (executable, args, options) => processes.spawn(executable, args, { ...options, env: { ...process.env, PATH: "" } })
+    } : localRequire(name), packagePath, { exports: {} }, {});
+    try {
+        handlers.get("library")(root);
+        assert.equal(await handlers.get("start")(), false);
+        assert(!events.some(e => e[0] === "status" && e[1].startsWith("Ready.")));
+        assert(events.some(e => e[0] === "status" && e[1].includes("Install Git for Windows") && e[1].includes("PATH")), JSON.stringify(events));
+        assert(!events.some(e => e[0] === "mutations" && e[1] === 1));
+        assert.equal(await handlers.get("snapshot")(), false);
+        assert.equal(await handlers.get("push")(), false);
+        assert(!fs.existsSync(path.join(root, ".git")));
+    } finally {
+        await handlers.get("stop")();
+        await new Promise(resolve => setTimeout(resolve, 200));
+        fs.rmSync(root, { recursive: true, force: true });
+    }
+});
 test("published device launches companion, initialises and Snapshots a real library without a shell", {
     skip: !fs.existsSync(path.join(packagePath, "companion/AbletonGit.Api.exe"))
 }, async () => {

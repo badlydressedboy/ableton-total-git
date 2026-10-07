@@ -26,6 +26,38 @@ var git = new GitRepository(runner);
 var reader = new AlsReader();
 CompanionService Service(IProcessRunner? process = null) => new(new GitRepository(process ?? runner), reader, new(), NullLogger<CompanionService>.Instance);
 
+Test("tool preflight reports missing/nonzero executables and propagates cancellation", async () =>
+{
+    using var p = new Fixture();
+    Check((await new ToolCheckService(git).CheckAsync(p.Root, default)).Ready, "installed tools callable");
+    foreach (var fault in new[] { "git", "lfs", "missing" })
+    {
+        var checks = await new ToolCheckService(new GitRepository(new FaultRunner(runner, fault))).CheckAsync(p.Root, default);
+        Check(!checks.Ready && checks.Checks.Count == 2 && checks.Checks.Any(c => c.Level == "FAIL" && c.Message.Contains("PATH") && c.Message.Contains("Restart Live")), "actionable " + fault + " failure");
+    }
+    using var cts = new CancellationTokenSource(); cts.Cancel();
+    await Throws<OperationCanceledException>(() => new ToolCheckService(git).CheckAsync(p.Root, cts.Token));
+});
+Test("tools API checks companion environment without a repository or readable Set", async () =>
+{
+    using var p = new Fixture(); await File.WriteAllTextAsync(p.Set, "unreadable");
+    foreach (var all in new[] { false, true })
+    {
+        var token = new string('A', 64); var app = ApiHost.Create(p.Root, token, 0, all);
+        await app.StartAsync();
+        try
+        {
+            var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
+            using var client = new HttpClient { BaseAddress = new Uri(address) };
+            Check((await client.GetAsync("/api/tools")).StatusCode == HttpStatusCode.Unauthorized, "tool checks require local token");
+            client.DefaultRequestHeaders.Add("X-AbletonGit-Token", token);
+            var result = await client.GetFromJsonAsync<ToolCheckResult>("/api/tools");
+            Check(result!.Ready && result.Checks.Count == 2 && result.Checks.All(c => c.Level == "PASS"), "tools callable before Init/parse");
+            Check(!Directory.Exists(Path.Combine(p.Root, ".git")) && !Directory.Exists(Path.Combine(p.Root, ".abletongit")), "preflight read-only");
+        }
+        finally { await app.StopAsync(); await app.DisposeAsync(); }
+    }
+});
 Test("ALS extraction, session membership, racks, macros, routing and master", async () =>
 {
     using var p = new Fixture(); var m = await reader.ReadAsync(p.Location);
@@ -570,6 +602,7 @@ sealed class FaultRunner(IProcessRunner inner, string fault) : IProcessRunner
     public Task<ProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments, string directory,
         CancellationToken cancellationToken = default, TimeSpan? timeout = null, string? input = null)
     {
+        if (fault == "missing") throw new CompanionException("Synthetic executable missing.");
         if (fault == "git" && arguments.Contains("--version") || fault == "lfs" && arguments.SequenceEqual(new[] { "lfs", "version" }) || fault == "commit" && arguments.Contains("commit"))
             return Task.FromResult(new ProcessResult(1, "", "Synthetic " + fault + " failure"));
         return inner.RunAsync(executable, arguments, directory, cancellationToken, timeout, input);

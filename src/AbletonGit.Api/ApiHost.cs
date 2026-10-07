@@ -25,6 +25,7 @@ public static class ApiHost
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = [] });
         builder.WebHost.ConfigureKestrel(o => { o.Listen(IPAddress.Loopback, port); o.Limits.MaxRequestBodySize = 4096; });
         builder.Services.AddCompanion();
+        builder.Services.AddSingleton<ToolCheckService>();
         builder.Services.ConfigureHttpJsonOptions(o => { o.SerializerOptions.UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow; });
         var app = builder.Build();
         app.UseStatusCodePages(async status =>
@@ -48,6 +49,8 @@ public static class ApiHost
                 context.Response.StatusCode = 409; await context.Response.WriteAsJsonAsync(new { error = "Unable to access project files. Check permissions and other running operations." });
             }
         });
+        app.MapGet("/api/tools", (ToolCheckService s, CancellationToken ct) =>
+            s.CheckAsync(Directory.Exists(path) ? path : Path.GetDirectoryName(path)!, ct));
         if (all)
         {
             app.MapGet("/api/projects", (LibraryService s) => new { all = true, projects = s.Projects(path).Select(p => new { path = p, name = p }) });
