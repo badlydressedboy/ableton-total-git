@@ -40,4 +40,4 @@ Markdown reports are views of this model: tracks list clips and devices, clips i
 
 ## Known limits
 
-No note-by-note MIDI, automation, all device parameters, warp-marker, plugin-state or musical content diff. Only the selected Set is analysed; other project Sets are versioned as original ALS. XML uses local element names for namespace tolerance. Unknown fields are ignored, so a newer format may lose optional details; major required-structure failures are never hidden. Test fixtures are synthetic, not a claim of complete compatibility with every Live release.
+No note-by-note MIDI, automation, all device parameters, warp-marker, plugin-state or musical content diff. Single-project mode analyses the selected Set; --all library mode analyses every discovered Set separately. XML uses local element names for namespace tolerance. Unknown fields are ignored, so a newer format may lose optional details; major required-structure failures are never hidden. Test fixtures are synthetic, not a claim of complete compatibility with every Live release.

@@ -10,7 +10,7 @@ namespace AbletonGit.Api;
 public sealed record SnapshotRequest(string Message, bool Push = false);
 public static class ApiHost
 {
-    public static WebApplication Create(string path, string token, int port = 17831)
+    public static WebApplication Create(string path, string token, int port = 17831, bool all = false)
     {
         if (string.IsNullOrWhiteSpace(token) || token.Length < 32) throw new ArgumentException("A strong local client token is required.", nameof(token));
         path = Path.GetFullPath(path);
@@ -40,6 +40,17 @@ public static class ApiHost
                 context.Response.StatusCode = 409; await context.Response.WriteAsJsonAsync(new { error = "Unable to access project files. Check permissions and other running operations." });
             }
         });
+        if (all)
+        {
+            app.MapGet("/api/status", (LibraryService s, CancellationToken ct) => s.StatusAsync(path, ct));
+            app.MapGet("/api/project", (LibraryService s, CancellationToken ct) => s.ProjectAsync(path, ct));
+            app.MapGet("/api/history", (LibraryService s, CancellationToken ct) => s.HistoryAsync(path, ct));
+            app.MapGet("/api/diff", (LibraryService s, CancellationToken ct) => s.DiffAsync(path, ct));
+            app.MapPost("/api/analyse", (LibraryService s, CancellationToken ct) => s.AnalyseAsync(path, ct));
+            app.MapPost("/api/snapshot", (SnapshotRequest request, LibraryService s, CancellationToken ct) => s.SnapshotAsync(path, request.Message, request.Push, ct));
+            app.MapPost("/api/push", async (LibraryService s, CancellationToken ct) => { await s.PushAsync(path, ct); return Results.Ok(new { pushed = true }); });
+            return app;
+        }
         app.MapGet("/api/status", (CompanionService s, CancellationToken ct) => s.StatusAsync(path, ct));
         app.MapGet("/api/project", (CompanionService s, CancellationToken ct) => s.ProjectAsync(path, ct));
         app.MapGet("/api/history", (CompanionService s, CancellationToken ct) => s.HistoryAsync(path, ct));

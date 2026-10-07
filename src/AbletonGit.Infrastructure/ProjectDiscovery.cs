@@ -21,7 +21,7 @@ public static class ProjectDiscovery
         DirectoryInfo? root = null;
         for (var dir = start; dir is not null; dir = dir.Parent)
         {
-            if (Directory.Exists(Path.Combine(dir.FullName, "Ableton Project Info")) || Directory.Exists(Path.Combine(dir.FullName, ".abletongit")))
+            if (Directory.Exists(Path.Combine(dir.FullName, "Ableton Project Info")) || File.Exists(Path.Combine(dir.FullName, ".abletongit", "project.json")))
             { root = dir; break; }
             if (dir.EnumerateFiles().Any(f => f.Extension.Equals(".als", StringComparison.OrdinalIgnoreCase))) fallback ??= dir;
             // Avoid discovering a different project above a repository boundary.

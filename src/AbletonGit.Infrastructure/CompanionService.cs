@@ -189,7 +189,7 @@ public sealed class CompanionService(IGitRepository git, ISetReader reader, Meta
         foreach (var lfs in new[] { false, true }) if ((await git.VersionAsync(lfs, directory, ct)).ExitCode != 0)
             throw new CompanionException(lfs ? "Git LFS is unavailable. Install Git LFS before Init or Snapshot." : "Git is unavailable. Install Git for Windows.");
     }
-    private static async Task<string> Hash(string path, CancellationToken ct)
+    internal static async Task<string> Hash(string path, CancellationToken ct)
     {
         await using var stream = File.OpenRead(path);
         return Convert.ToHexString(await SHA256.HashDataAsync(stream, ct));
@@ -200,21 +200,21 @@ public sealed class CompanionService(IGitRepository git, ISetReader reader, Meta
         if (gitRoot is null) throw new CompanionException("This project has no Snapshots repository. Run abletongit init first.");
         if (!SamePath(root, gitRoot)) throw new CompanionException("Snapshots require a repository rooted at the Ableton Project, separate from its parent repository.");
     }
-    private static bool SamePath(string a, string b) => string.Equals(Path.TrimEndingDirectorySeparator(a), Path.TrimEndingDirectorySeparator(b), OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+    internal static bool SamePath(string a, string b) => string.Equals(Path.TrimEndingDirectorySeparator(a), Path.TrimEndingDirectorySeparator(b), OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
     public static bool SnapshotPath(string path) => !path.Split('/').Any(p => p is ".git" or "Backup") &&
         (path.EndsWith(".als", StringComparison.OrdinalIgnoreCase) || ProjectDiscovery.IsAudio(path) ||
          path.StartsWith("Ableton Project Info/", StringComparison.Ordinal) ||
          path is ".gitattributes" or ".gitignore" ||
          path.StartsWith(".abletongit/", StringComparison.Ordinal) && MetadataNames.Contains(path[12..]));
     private static readonly HashSet<string> MetadataNames = new(StringComparer.Ordinal) { "project.json", "tracks.md", "clips.md", "devices.md", "scenes.md", "routing.md" };
-    private static FileStream Lock(string root)
+    internal static FileStream Lock(string root)
     {
         var dir = Path.Combine(root, ".abletongit"); ProjectDiscovery.EnsureSafePath(root, dir); Directory.CreateDirectory(dir);
         var path = Path.Combine(dir, "operation.lock"); ProjectDiscovery.EnsureSafePath(root, path);
         try { return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
         catch (IOException ex) { throw new CompanionException("Another companion operation is running for this project. Wait for it to finish.", ex); }
     }
-    private static async Task<bool> AppendLines(string root, string name, IReadOnlyList<string> entries, CancellationToken ct)
+    internal static async Task<bool> AppendLines(string root, string name, IReadOnlyList<string> entries, CancellationToken ct)
     {
         var path = Path.Combine(root, name); ProjectDiscovery.EnsureSafePath(root, path);
         var text = File.Exists(path) ? await File.ReadAllTextAsync(path, ct) : "";
@@ -236,5 +236,5 @@ public static class CompanionRegistration
 {
     public static IServiceCollection AddCompanion(this IServiceCollection services) => services
         .AddSingleton<IProcessRunner, ProcessRunner>().AddSingleton<IGitRepository, GitRepository>()
-        .AddSingleton<ISetReader, AlsReader>().AddSingleton<MetadataWriter>().AddSingleton<CompanionService>();
+        .AddSingleton<ISetReader, AlsReader>().AddSingleton<MetadataWriter>().AddSingleton<CompanionService>().AddSingleton<LibraryService>();
 }

@@ -44,9 +44,9 @@ public sealed class MetadataWriter
         { ["project.json"] = ModelJson.Serialize(model), ["tracks.md"] = tracks.ToString(), ["clips.md"] = clips.ToString(),
             ["devices.md"] = devices.ToString(), ["scenes.md"] = scenes.ToString(), ["routing.md"] = routing.ToString() };
     }
-    public async Task<IReadOnlyList<string>> WriteAsync(string root, ProjectModel model, CancellationToken ct)
+    public async Task<IReadOnlyList<string>> WriteAsync(string root, ProjectModel model, CancellationToken ct, string metadataDirectory = ".abletongit")
     {
-        var dir = Path.Combine(root, ".abletongit");
+        var dir = Path.Combine(root, metadataDirectory);
         ProjectDiscovery.EnsureSafePath(root, dir);
         Directory.CreateDirectory(dir);
         var changed = new List<string>();
@@ -64,7 +64,7 @@ public sealed class MetadataWriter
                 File.Move(temp, path, true);
             }
             finally { if (File.Exists(temp)) File.Delete(temp); }
-            changed.Add(".abletongit/" + name);
+            changed.Add(metadataDirectory.Replace('\\', '/') + "/" + name);
         }
         return changed;
     }

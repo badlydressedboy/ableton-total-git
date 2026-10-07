@@ -44,11 +44,13 @@ abletongit status --path "D:\Music\Dub Project\Dub.als"
 abletongit history --path "D:\Music\Dub Project\Dub.als"
 ```
 
-Inside a project with one Set, omit `--path`. You may supply a project directory, a nested directory, or a Set file. When several Sets exist, choose an ALS explicitly. Each analysis covers the selected Set; Snapshots include all eligible project Sets and local audio. Snapshots require a repository rooted at the Ableton Project itself, to avoid including unrelated parent-repository work.
+Inside a project with one Set, omit `--path`. You may supply a project directory, a nested directory, or a Set file. When several Sets exist, choose an ALS explicitly. Each analysis covers the selected Set; Snapshots include all eligible project Sets and local audio. In single-project mode, Snapshots require a repository rooted at the Ableton Project itself, to avoid including unrelated parent-repository work.
 
 Use `--json` for structured output and `--verbose` for diagnostics. `diff` analyses the saved Set in memory and compares it with the last committed `.abletongit/project.json`; running `analyse` repeatedly does not erase that baseline. The generated reports have no timestamps or absolute project paths.
 
 ## Push
+
+To track **all projects in one parent-folder repository**, use `--all` on any command. Every Set gets separate semantic metadata; analysis and report generation run in parallel with up to four workers, while Git writes remain serial. See [project library workflow](docs/project-library.md) for commands, layout and migration constraints.
 
 Link an **existing private repository** and configure its tracking branch with your normal Git tools. Local operations work without a remote. The companion uses Git's existing credential mechanism, stores no GitHub credentials, and performs no fetch automatically; ahead/behind counts use the last known remote state.
 

@@ -369,6 +369,101 @@ Test("HTTP loopback, token, origin, validation, structured endpoints and snapsho
     finally { await app.StopAsync(); }
 });
 
+Test("library analyses Sets in parallel with deterministic order and bounded workers", async () =>
+{
+    using var p = new Fixture(); var root = Path.GetDirectoryName(p.Root)!;
+    for (var i = 0; i < 7; i++) File.Copy(p.Set, Path.Combine(p.Root, $"Version {i}.als"));
+    var tracking = new TrackingReader(reader); var library = new LibraryService(git, tracking, new());
+    var model = await library.ProjectAsync(root, default);
+    Check(tracking.Peak is > 1 and <= LibraryService.MaxParallelProjects, "parallel worker bound: " + tracking.Peak);
+    Check(model.Sets.Select(s => s.SetPath).SequenceEqual(model.Sets.Select(s => s.SetPath).Order(StringComparer.Ordinal)), "stable parallel order");
+    var first = await library.AnalyseAsync(root, default); var again = await library.AnalyseAsync(root, default);
+    Check(again.ChangedFiles.Count == 0 && ModelJson.Serialize(first.Library) == ModelJson.Serialize(again.Library), "parallel metadata deterministic");
+});
+Test("one library repository, duplicate names, per-Set diffs, selective files, removals and no changes", async () =>
+{
+    using var p = new Fixture(); var root = Path.GetDirectoryName(p.Root)!;
+    var second = Path.Combine(root, "Second Project 音"); Directory.CreateDirectory(Path.Combine(second, "Ableton Project Info"));
+    Directory.CreateDirectory(Path.Combine(second, "Samples", "Imported"));
+    var secondSet = Path.Combine(second, Path.GetFileName(p.Set)); File.Copy(p.Set, secondSet);
+    File.Copy(p.Audio, Path.Combine(second, "Samples", "Imported", "bass.wav"));
+    var alternate = Path.Combine(p.Root, "Alternate.als"); File.Copy(p.Set, alternate);
+    await File.WriteAllBytesAsync(Path.Combine(root, "unrelated.wav"), [1, 2]);
+    await File.WriteAllTextAsync(Path.Combine(second, "private.txt"), "unrelated");
+    var library = new LibraryService(git, reader, new()); var init = await library.InitAsync(root, default); await p.Identity(runner);
+    Check(init.Analysis.Library.Sets.Count == 3 && init.Analysis.Library.Sets.Select(s => s.MetadataDirectory).Distinct().Count() == 3, "collision-free metadata");
+    Check(!Directory.Exists(Path.Combine(p.Root, ".git")) && !Directory.Exists(Path.Combine(second, ".git")), "one root repo");
+    Check(ProjectDiscovery.Discover(p.Set).Root == p.Root, "single project discovery preserved");
+    var first = await library.SnapshotAsync(root, "Whole library", false, default);
+    Check(first.Created && first.Files.Count(f => f.Path.EndsWith(".als")) == 3, "all Sets committed");
+    Check(first.Files.All(f => f.Path != "unrelated.wav" && !f.Path.EndsWith("private.txt")), "unrelated files excluded");
+    await git.VerifyStagedAudioAsync(root, first.Files.Where(f => ProjectDiscovery.IsAudio(f.Path)).Select(f => f.Path).ToList(), default);
+    Check(!(await library.SnapshotAsync(root, "No changes", false, default)).Created, "no changes");
+    await p.Save(Fixture.Xml().Replace("Bass Clean", "Bass Dub"));
+    await library.AnalyseAsync(root, default);
+    var diff = await library.DiffAsync(root, default);
+    Check(diff.Changes.Any(c => c.Category == "Clip" && c.Context.StartsWith(ProjectDiscovery.Relative(root, p.Set), StringComparison.Ordinal)), "scoped baseline");
+    Check(!diff.Changes.Any(c => c.Context.StartsWith("Second Project", StringComparison.Ordinal)), "unchanged sibling");
+    await library.SnapshotAsync(root, "Bass variation", false, default);
+    var removed = init.Analysis.Library.Sets.Single(s => s.SetPath == ProjectDiscovery.Relative(root, alternate)); File.Delete(alternate);
+    Check((await library.DiffAsync(root, default)).Changes.Any(c => c.Category == "Set" && c.Kind == "removed"), "removed Set diff");
+    var deletion = await library.SnapshotAsync(root, "Removed alternate", false, default);
+    Check(deletion.Files.Any(f => f.Path == removed.MetadataDirectory + "/project.json" && f.State.Contains('D')), "obsolete derived files removed");
+    Check((await library.HistoryAsync(root, default)).Count == 3, "shared history");
+    ProjectDiscovery.EnsureSafePath(root, second); Directory.Delete(second, true);
+    var removedProject = await library.SnapshotAsync(root, "Removed second project", false, default);
+    Check(removedProject.Files.Any(f => f.Path.StartsWith("Second Project", StringComparison.Ordinal) && ProjectDiscovery.IsAudio(f.Path) && f.State.Contains('D')), "removed project audio staged");
+    var status = await library.StatusAsync(root, default);
+    Check(status.Library.Sets.Select(s => s.ProjectPath).Distinct().Count() == 1 && status.UnmanagedAudio == 0, "library status");
+    Check((await library.DoctorAsync(root, default)).All(d => d.Level != "FAIL"), "library doctor");
+});
+Test("library rejects nested repositories before mutation", async () =>
+{
+    using var p = new Fixture(); var root = Path.GetDirectoryName(p.Root)!; await git.InitializeAsync(p.Root, default);
+    var library = new LibraryService(git, reader, new());
+    await Throws<CompanionException>(() => library.InitAsync(root, default));
+    Check(!Directory.Exists(Path.Combine(root, ".git")) && !Directory.Exists(Path.Combine(root, ".abletongit")), "no parent mutation");
+});
+Test("library parse failure is atomic across metadata and cancellation propagates", async () =>
+{
+    using var p = new Fixture(); var root = Path.GetDirectoryName(p.Root)!;
+    await File.WriteAllTextAsync(Path.Combine(p.Root, "Invalid.als"), "invalid");
+    var library = new LibraryService(git, reader, new());
+    await Throws<CompanionException>(() => library.AnalyseAsync(root, default));
+    Check(!Directory.Exists(Path.Combine(root, ".abletongit")), "no partial metadata on read failure");
+    using var cts = new CancellationTokenSource(); cts.Cancel();
+    await Throws<OperationCanceledException>(() => library.ProjectAsync(root, cts.Token));
+});
+Test("library Snapshot refuses prepared work and concurrent Save", async () =>
+{
+    using var p = new Fixture(); var root = Path.GetDirectoryName(p.Root)!; var library = new LibraryService(git, reader, new());
+    await library.InitAsync(root, default); await p.Identity(runner);
+    await Throws<CompanionException>(() => library.SnapshotAsync(root, "Changed during analysis", false, default,
+        (_, _) => p.Save(Fixture.Xml().Replace("Bass Clean", "Changed")).GetAwaiter().GetResult()));
+    Check(!await git.HasStagedAsync(root, default), "no inconsistent staging");
+    await git.StageAsync(root, [".gitignore"], default);
+    await Throws<CompanionException>(() => library.SnapshotAsync(root, "Prepared work", false, default));
+    Check(await git.HasStagedAsync(root, default), "existing work preserved");
+});
+Test("library CLI --all and API mode", async () =>
+{
+    using var p = new Fixture(); var root = Path.GetDirectoryName(p.Root)!;
+    var library = new LibraryService(git, reader, new()); await library.InitAsync(root, default); await p.Identity(runner);
+    var config = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
+    var cli = Path.GetFullPath($"../../../../../src/AbletonGit.Cli/bin/{config}/net10.0/abletongit.dll", AppContext.BaseDirectory);
+    var output = await runner.RunAsync("dotnet", [cli, "analyse", "--all", "--path", root, "--json"], root);
+    Check(output.ExitCode == 0 && output.Output.Contains("metadataDirectory"), output.Error);
+    var token = new string('b', 64); await using var app = ApiHost.Create(root, token, 0, all: true); await app.StartAsync();
+    try
+    {
+        using var client = new HttpClient { BaseAddress = new(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
+        client.DefaultRequestHeaders.Add("X-AbletonGit-Token", token);
+        var result = await client.PostAsJsonAsync("/api/snapshot", new { message = "Library API Snapshot" });
+        Check(result.IsSuccessStatusCode && (await result.Content.ReadAsStringAsync()).Contains("\"created\":true"), "library snapshot endpoint");
+    }
+    finally { await app.StopAsync(); }
+});
+
 var failed = 0;
 foreach (var (name, run) in tests)
 {
@@ -385,6 +480,20 @@ static async Task Throws<T>(Func<Task> action) where T : Exception
     throw new InvalidOperationException("Expected " + typeof(T).Name);
 }
 
+sealed class TrackingReader(ISetReader inner) : ISetReader
+{
+    private int active;
+    private int peak;
+    public int Peak => peak;
+    public async Task<ProjectModel> ReadAsync(ProjectLocation location, CancellationToken cancellationToken = default)
+    {
+        var count = Interlocked.Increment(ref active);
+        int old;
+        do { old = peak; } while (count > old && Interlocked.CompareExchange(ref peak, count, old) != old);
+        try { await Task.Delay(100, cancellationToken); return await inner.ReadAsync(location, cancellationToken); }
+        finally { Interlocked.Decrement(ref active); }
+    }
+}
 sealed class FaultRunner(IProcessRunner inner, string fault) : IProcessRunner
 {
     public Task<ProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments, string directory,

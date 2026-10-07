@@ -34,4 +34,6 @@ Analysis writes each report using a temporary file then atomic replacement, skip
 
 ## Evolution
 
-Future live awareness belongs in a separate integration adapter. GitHub-specific repository linking/creation belongs outside Git process logic and must default to private. Restore requires a backup/current Snapshot first and is intentionally absent. Cache, multiple per-Set metadata models, parameter/note diffs and richer macro mappings should follow real-fixture validation rather than guesses about XML.
+`LibraryService` provides explicit `--all` operations over a parent-folder repository. It uses a committed library catalog plus per-Set reports, bounded parallel Set analysis/hashing/report writes, deterministic result ordering, and serial Git writes under a library-wide lock. The CLI and API route to this service when library mode is selected. See [project-library.md](project-library.md).
+
+Future live awareness belongs in a separate integration adapter. GitHub-specific repository linking/creation belongs outside Git process logic and must default to private. Restore requires a backup/current Snapshot first and is intentionally absent. Cache, parameter/note diffs and richer macro mappings should follow real-fixture validation rather than guesses about XML.

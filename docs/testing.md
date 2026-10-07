@@ -11,3 +11,5 @@ dotnet src/AbletonGit.Cli/bin/Debug/net10.0/abletongit.dll analyse --path "D:\Pr
 ```
 
 Compare generated counts, names, clip positions, scenes, chain context and routing against Live. Test both MasterTrack and MainTrack projects, multi-chain racks, multiple session slots, recorded/processed samples, external paths and plugins. Record anonymised findings and reduce any bugs to synthetic fixtures before adding public tests. Keep originals unchanged and do not push private fixtures. Synthetic tests establish workflow correctness, not exhaustive real-format compatibility.
+
+Library tests additionally verify bounded parallel workers, deterministic parallel metadata, duplicate Set names, one shared repository, scoped historical baselines, Set/project deletions, nested-repository rejection, read failures before writes, cancellation, preserved staged work, concurrent Save detection, and CLI/API library mode.

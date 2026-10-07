@@ -65,12 +65,12 @@ public sealed class GitRepository(IProcessRunner runner) : IGitRepository
         for (var i = 0; i + 1 < parts.Length; i += 2) if (parts[i].Trim().Length > 0) results.Add(new(parts[i].Trim(), parts[i + 1]));
         return results;
     }
-    public async Task<string?> PreviousMetadataAsync(string directory, CancellationToken ct)
+    public async Task<string?> PreviousMetadataAsync(string directory, CancellationToken ct, string metadataPath = ".abletongit/project.json")
     {
         if ((await Run(directory, ct, "rev-parse", "--verify", "HEAD")).ExitCode != 0) return null;
-        var revision = await Require(directory, ct, "log", "-1", "--format=%H", "--first-parent", "--", ".abletongit/project.json");
+        var revision = await Require(directory, ct, "--literal-pathspecs", "log", "-1", "--format=%H", "--first-parent", "--", metadataPath);
         if (revision.Length == 0) return null;
-        return await Require(directory, ct, "show", revision + ":.abletongit/project.json");
+        return await Require(directory, ct, "show", revision + ":" + metadataPath);
     }
     public async Task<bool> IsLfsAsync(string directory, string path, CancellationToken ct)
     {
