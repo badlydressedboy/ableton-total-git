@@ -222,7 +222,7 @@ class Client {
     }
     async createSnapshot() {
             this.requireTools();
-            if (!this.validDescription()) throw new Error("Enter a Snapshot description with at least 4 characters.");
+            if (!this.validDescription()) throw new Error("Enter a Commit Comment with at least 4 characters.");
             if (this.scope === "all" && !this.all) throw new Error("All projects requires a library companion.");
             if (this.scope === "project" && !this.project) throw new Error("Choose the project you want to Snapshot.");
             this.emit("status", "Creating Snapshot...");

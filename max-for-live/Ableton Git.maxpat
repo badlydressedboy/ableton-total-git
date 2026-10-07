@@ -61,7 +61,7 @@
           "patching_rect": [
             85,
             22,
-            335,
+            440,
             25
           ],
           "numinlets": 1,
@@ -75,7 +75,7 @@
           "presentation_rect": [
             85,
             22,
-            335,
+            440,
             25
           ]
         }
@@ -85,9 +85,9 @@
           "id": "description",
           "maxclass": "textedit",
           "patching_rect": [
-            585,
-            50,
-            150,
+            125,
+            110,
+            230,
             25
           ],
           "numinlets": 1,
@@ -98,9 +98,9 @@
           "text": "Raw Creativity",
           "presentation": 1,
           "presentation_rect": [
-            585,
-            50,
-            150,
+            125,
+            110,
+            230,
             25
           ]
         }
@@ -110,17 +110,17 @@
           "id": "descriptionlabel",
           "maxclass": "comment",
           "patching_rect": [
-            510,
-            54,
-            75,
+            8,
+            114,
+            110,
             20
           ],
-          "text": "Description",
+          "text": "Commit Comment",
           "presentation": 1,
           "presentation_rect": [
-            510,
-            54,
-            75,
+            8,
+            114,
+            110,
             20
           ]
         }
@@ -131,7 +131,7 @@
           "maxclass": "comment",
           "patching_rect": [
             8,
-            54,
+            84,
             75,
             20
           ],
@@ -139,7 +139,7 @@
           "presentation": 1,
           "presentation_rect": [
             8,
-            54,
+            84,
             75,
             20
           ]
@@ -151,8 +151,8 @@
           "maxclass": "umenu",
           "patching_rect": [
             85,
-            50,
-            260,
+            80,
+            275,
             25
           ],
           "items": [
@@ -164,8 +164,8 @@
           "presentation": 1,
           "presentation_rect": [
             85,
-            50,
-            260,
+            80,
+            275,
             25
           ]
         }
@@ -175,9 +175,9 @@
           "id": "scope",
           "maxclass": "umenu",
           "patching_rect": [
-            355,
-            50,
-            145,
+            370,
+            80,
+            155,
             25
           ],
           "items": [
@@ -190,9 +190,9 @@
           "numoutlets": 3,
           "presentation": 1,
           "presentation_rect": [
-            355,
-            50,
-            145,
+            370,
+            80,
+            155,
             25
           ]
         }
@@ -204,7 +204,7 @@
           "patching_rect": [
             8,
             0,
-            500,
+            300,
             20
           ],
           "text": "Select a project. Save in Live before Snapshot.",
@@ -212,7 +212,7 @@
           "presentation_rect": [
             8,
             0,
-            500,
+            300,
             20
           ]
         }
@@ -222,17 +222,17 @@
           "id": "details",
           "maxclass": "comment",
           "patching_rect": [
-            520,
+            315,
             0,
-            400,
+            210,
             20
           ],
           "text": "",
           "presentation": 1,
           "presentation_rect": [
-            520,
+            315,
             0,
-            400,
+            210,
             20
           ]
         }
@@ -243,7 +243,7 @@
           "maxclass": "comment",
           "patching_rect": [
             8,
-            77,
+            140,
             537,
             20
           ],
@@ -251,7 +251,7 @@
           "presentation": 1,
           "presentation_rect": [
             8,
-            77,
+            140,
             537,
             20
           ]
@@ -262,17 +262,17 @@
           "id": "filesummary",
           "maxclass": "comment",
           "patching_rect": [
-            8,
-            117,
-            800,
+            555,
+            0,
+            365,
             20
           ],
           "text": "Start the companion to preview files.",
           "presentation": 1,
           "presentation_rect": [
-            8,
-            117,
-            800,
+            555,
+            0,
+            365,
             20
           ]
         }
@@ -282,10 +282,10 @@
           "id": "filelist",
           "maxclass": "jit.cellblock",
           "patching_rect": [
-            8,
-            139,
-            912,
-            276
+            555,
+            22,
+            365,
+            140
           ],
           "cols": 2,
           "rows": 1,
@@ -321,10 +321,10 @@
           "grid": 0,
           "presentation": 1,
           "presentation_rect": [
-            8,
-            139,
-            912,
-            276
+            555,
+            22,
+            365,
+            140
           ]
         }
       },
@@ -749,9 +749,9 @@
           "id": "start",
           "maxclass": "textbutton",
           "patching_rect": [
-            430,
-            22,
-            115,
+            85,
+            50,
+            130,
             25
           ],
           "active": 1,
@@ -767,9 +767,9 @@
           "text": "Start companion",
           "presentation": 1,
           "presentation_rect": [
-            430,
-            22,
-            115,
+            85,
+            50,
+            130,
             25
           ]
         }
@@ -779,7 +779,7 @@
           "id": "startcmd",
           "maxclass": "message",
           "patching_rect": [
-            430,
+            85,
             536,
             100,
             22
@@ -792,7 +792,7 @@
           "id": "starttrigger",
           "maxclass": "newobj",
           "patching_rect": [
-            430,
+            85,
             230,
             250,
             22
@@ -805,9 +805,9 @@
           "id": "init",
           "maxclass": "textbutton",
           "patching_rect": [
-            555,
-            22,
-            115,
+            225,
+            50,
+            130,
             25
           ],
           "active": 0,
@@ -823,9 +823,9 @@
           "text": "Initialise library",
           "presentation": 1,
           "presentation_rect": [
-            555,
-            22,
-            115,
+            225,
+            50,
+            130,
             25
           ]
         }
@@ -835,7 +835,7 @@
           "id": "initcmd",
           "maxclass": "message",
           "patching_rect": [
-            555,
+            225,
             554,
             100,
             22
@@ -848,7 +848,7 @@
           "id": "inittrigger",
           "maxclass": "newobj",
           "patching_rect": [
-            555,
+            225,
             230,
             250,
             22
@@ -861,9 +861,9 @@
           "id": "stop",
           "maxclass": "textbutton",
           "patching_rect": [
-            680,
-            22,
+            365,
             50,
+            60,
             25
           ],
           "active": 0,
@@ -879,9 +879,9 @@
           "text": "Stop",
           "presentation": 1,
           "presentation_rect": [
-            680,
-            22,
+            365,
             50,
+            60,
             25
           ]
         }
@@ -891,7 +891,7 @@
           "id": "stopcmd",
           "maxclass": "message",
           "patching_rect": [
-            680,
+            365,
             572,
             100,
             22
@@ -904,7 +904,7 @@
           "id": "stoptrigger",
           "maxclass": "newobj",
           "patching_rect": [
-            680,
+            365,
             230,
             250,
             22
@@ -917,9 +917,9 @@
           "id": "refresh",
           "maxclass": "textbutton",
           "patching_rect": [
-            740,
-            22,
-            180,
+            435,
+            50,
+            90,
             25
           ],
           "active": 0,
@@ -935,9 +935,9 @@
           "text": "Refresh projects",
           "presentation": 1,
           "presentation_rect": [
-            740,
-            22,
-            180,
+            435,
+            50,
+            90,
             25
           ]
         }
@@ -947,7 +947,7 @@
           "id": "refreshcmd",
           "maxclass": "message",
           "patching_rect": [
-            740,
+            435,
             590,
             100,
             22
@@ -960,7 +960,7 @@
           "id": "refreshtrigger",
           "maxclass": "newobj",
           "patching_rect": [
-            740,
+            435,
             230,
             250,
             22
@@ -973,9 +973,9 @@
           "id": "push",
           "maxclass": "textbutton",
           "patching_rect": [
-            745,
-            50,
-            175,
+            365,
+            110,
+            75,
             25
           ],
           "active": 0,
@@ -991,9 +991,9 @@
           "text": "Push",
           "presentation": 1,
           "presentation_rect": [
-            745,
-            50,
-            175,
+            365,
+            110,
+            75,
             25
           ]
         }
@@ -1003,7 +1003,7 @@
           "id": "pushcmd",
           "maxclass": "message",
           "patching_rect": [
-            745,
+            365,
             608,
             100,
             22
@@ -1016,7 +1016,7 @@
           "id": "pushtrigger",
           "maxclass": "newobj",
           "patching_rect": [
-            745,
+            365,
             230,
             250,
             22
@@ -1042,9 +1042,9 @@
           "id": "gitstatus",
           "maxclass": "textbutton",
           "patching_rect": [
-            820,
-            112,
-            100,
+            450,
+            110,
+            75,
             25
           ],
           "active": 1,
@@ -1060,9 +1060,9 @@
           "text": "Git status",
           "presentation": 1,
           "presentation_rect": [
-            820,
-            112,
-            100,
+            450,
+            110,
+            75,
             25
           ]
         }
@@ -1072,7 +1072,7 @@
           "id": "gitstatuscmd",
           "maxclass": "message",
           "patching_rect": [
-            820,
+            450,
             632,
             100,
             22
@@ -1085,7 +1085,7 @@
           "id": "gitstatustrigger",
           "maxclass": "newobj",
           "patching_rect": [
-            820,
+            450,
             230,
             250,
             22

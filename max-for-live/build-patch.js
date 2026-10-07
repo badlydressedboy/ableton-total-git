@@ -32,17 +32,17 @@ function button(id, caption, command, x, y, width, fields = false) {
 }
 box("title", "comment", "ABLETON GIT", [8, 200, 90, 20]);
 label("librarylabel", "Library folder", 8, 26, 75);
-box("library", "textedit", "", [85, 22, 335, 25], true, { numinlets: 1, numoutlets: 4, parameter_enable: 0, keymode: 1, outputmode: 1, valuemode: 0 });
-box("description", "textedit", "Raw Creativity", [585, 50, 150, 25], true, { numinlets: 1, numoutlets: 4, parameter_enable: 0, keymode: 1, outputmode: 1 });
-label("descriptionlabel", "Description", 510, 54, 75);
-label("projectlabel", "Project", 8, 54, 75);
-box("project", "umenu", null, [85, 50, 260, 25], true, { items: ["Choose project..."], parameter_enable: 0, numinlets: 1, numoutlets: 3 });
-box("scope", "umenu", null, [355, 50, 145, 25], true, { items: ["Current project", ",", "All projects"], parameter_enable: 0, numinlets: 1, numoutlets: 3 });
-label("warning", "Select a project. Save in Live before Snapshot.", 8, 0, 500);
-label("details", "", 520, 0, 400);
-label("status", "Enter library folder, then Start companion.", 8, 77, 537);
-label("filesummary", "Start the companion to preview files.", 8, 117, 800);
-box("filelist", "jit.cellblock", null, [8, 139, 912, 276], true, {
+box("library", "textedit", "", [85, 22, 440, 25], true, { numinlets: 1, numoutlets: 4, parameter_enable: 0, keymode: 1, outputmode: 1, valuemode: 0 });
+box("description", "textedit", "Raw Creativity", [125, 110, 230, 25], true, { numinlets: 1, numoutlets: 4, parameter_enable: 0, keymode: 1, outputmode: 1 });
+label("descriptionlabel", "Commit Comment", 8, 114, 110);
+label("projectlabel", "Project", 8, 84, 75);
+box("project", "umenu", null, [85, 80, 275, 25], true, { items: ["Choose project..."], parameter_enable: 0, numinlets: 1, numoutlets: 3 });
+box("scope", "umenu", null, [370, 80, 155, 25], true, { items: ["Current project", ",", "All projects"], parameter_enable: 0, numinlets: 1, numoutlets: 3 });
+label("warning", "Select a project. Save in Live before Snapshot.", 8, 0, 300);
+label("details", "", 315, 0, 210);
+label("status", "Enter library folder, then Start companion.", 8, 140, 537);
+label("filesummary", "Start the companion to preview files.", 555, 0, 365);
+box("filelist", "jit.cellblock", null, [555, 22, 365, 140], true, {
     cols: 2, rows: 1, rowheight: 14, colwidth: 75, hscroll: 1, vscroll: 1, readonly: 1,
     selmode: 0, neverdirty: 1, datadirty: 0, fontsize: 11, numinlets: 2, numoutlets: 4,
     bgcolor: [0.12, 0.12, 0.12, 1], fgcolor: [1, 1, 1, 1], textcolor: [1, 1, 1, 1], grid: 0
@@ -82,13 +82,13 @@ for (const id of ["project", "scope"]) {
     obj(id + "prefix", "prepend " + id, 520, id === "project" ? 720 : 770);
     wire(id, 0, id + "prefix"); wire(id + "prefix", 0, "node");
 }
-button("start", "Start companion", "start", 430, 22, 115, true);
-button("init", "Initialise library", "init", 555, 22, 115);
-button("stop", "Stop", "stop", 680, 22, 50);
-button("refresh", "Refresh projects", "refresh", 740, 22, 180);
-button("push", "Push", "push", 745, 50, 175, true);
+button("start", "Start companion", "start", 85, 50, 130, true);
+button("init", "Initialise library", "init", 225, 50, 130);
+button("stop", "Stop", "stop", 365, 50, 60);
+button("refresh", "Refresh projects", "refresh", 435, 50, 90);
+button("push", "Push", "push", 365, 110, 75, true);
 obj("gitstatusactive", "prepend active", 1250, 660); wire("notbusy", 0, "gitstatusactive");
-button("gitstatus", "Git status", "gitstatus", 820, 112, 100, true);
+button("gitstatus", "Git status", "gitstatus", 450, 110, 75, true);
 obj("audioin", "plugin~", 10, 850); obj("audioout", "plugout~", 10, 900);
 wire("audioin", 0, "audioout", 0); wire("audioin", 1, "audioout", 1);
 obj("defaults", "loadbang", 300, 850);

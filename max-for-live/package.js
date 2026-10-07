@@ -3,6 +3,8 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 require("./build-patch");
+const { buildDevice } = require("./build-device");
+buildDevice(path.join(__dirname, "device-template.amxd"), path.join(__dirname, "Ableton Git.maxpat"), path.join(__dirname, "Ableton Git.amxd"));
 const root = path.resolve(__dirname, "..");
 const args = process.argv.slice(2);
 let runtime = null, output = null;
@@ -23,7 +25,7 @@ const published = spawnSync("dotnet", publishArgs,
     { cwd: root, stdio: "inherit", shell: false, windowsHide: true });
 if (published.error) throw published.error;
 if (published.status !== 0) process.exit(published.status || 1);
-for (const name of ["Ableton Git.maxpat", "device.js", "client.js", "preferences.js", "platform.js"]) fs.copyFileSync(path.join(__dirname, name), path.join(destination, name));
+for (const name of ["Ableton Git.amxd", "Ableton Git.maxpat", "device.js", "client.js", "preferences.js", "platform.js"]) fs.copyFileSync(path.join(__dirname, name), path.join(destination, name));
 fs.copyFileSync(path.join(destination, "Ableton Git.maxpat"), path.join(destination, "AbletonGit-FULL-53-objects.maxpat"));
 fs.copyFileSync(path.join(root, "docs", "max-for-live.md"), path.join(destination, "README.md"));
 console.log("M4L source and companion package: " + destination);

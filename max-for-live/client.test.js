@@ -153,7 +153,7 @@ test("patch wires every action to Node, passes audio through and defaults All pr
     assert.equal(patch.devicewidth, 930);
     for (const { box } of patch.boxes.filter(b => b.box.presentation === 1)) {
         assert(box.presentation_rect[0] + box.presentation_rect[2] <= patch.devicewidth, box.id + " fits device width");
-        assert(box.presentation_rect[1] + box.presentation_rect[3] <= 415, box.id + " fits expanded presentation");
+        assert(box.presentation_rect[1] + box.presentation_rect[3] <= 169, box.id + " fits Live device height");
     }
     assert(patch.lines.some(l => l.patchline.source[0] === "descriptionclear" && l.patchline.destination[0] === "description"));
     assert.equal(patch.boxes.find(b => b.box.id === "stop").box.active, 0);
