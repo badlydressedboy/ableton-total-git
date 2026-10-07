@@ -417,6 +417,77 @@ Test("one library repository, duplicate names, per-Set diffs, selective files, r
     Check(status.Library.Sets.Select(s => s.ProjectPath).Distinct().Count() == 1 && status.UnmanagedAudio == 0, "library status");
     Check((await library.DoctorAsync(root, default)).All(d => d.Level != "FAIL"), "library doctor");
 });
+Test("project Snapshot preserves sibling baseline, pending reports, scope and removals", async () =>
+{
+    using var p = new Fixture(); var root = Path.GetDirectoryName(p.Root)!;
+    var second = Path.Combine(root, "Second Project 音"); Directory.CreateDirectory(Path.Combine(second, "Ableton Project Info"));
+    var secondSet = Path.Combine(second, "Other.als"); File.Copy(p.Set, secondSet);
+    var library = new LibraryService(git, reader, new()); await library.InitAsync(root, default); await p.Identity(runner);
+    var project = ProjectDiscovery.Relative(root, p.Root);
+    var first = await library.SnapshotProjectAsync(root, project, "First project only", false, default);
+    Check(first.Created && first.Files.All(f => !f.Path.StartsWith("Second Project", StringComparison.Ordinal)), "first Snapshot scoped");
+    var committed = await git.PreviousMetadataAsync(root, default, ".abletongit/library.json");
+    Check(!committed!.Contains("Other.als"), "uncommitted sibling not added to catalog baseline");
+    await library.SnapshotAsync(root, "Remaining project", false, default);
+    await p.Save(Fixture.Xml().Replace("Bass Clean", "Selected variation"));
+    File.Copy(p.Set, secondSet, true); // Both projects changed.
+    await library.AnalyseAsync(root, default);
+    var before = await library.ProjectAsync(root, default);
+    var siblingReport = Path.Combine(root, before.Sets.Single(s => s.SetPath.EndsWith("Other.als")).MetadataDirectory, "project.json");
+    var siblingText = await File.ReadAllTextAsync(siblingReport);
+    var snapshot = await library.SnapshotProjectAsync(root, project, "Selected only", false, default);
+    Check(snapshot.Created && snapshot.Diff.Changes.All(c => !c.Context.StartsWith("Second Project", StringComparison.Ordinal)), "diff scoped");
+    Check(snapshot.Files.All(f => !f.Path.StartsWith("Second Project", StringComparison.Ordinal)), "files scoped");
+    Check(await File.ReadAllTextAsync(siblingReport) == siblingText, "sibling pending metadata untouched");
+    var remaining = await library.DiffAsync(root, default);
+    Check(remaining.Changes.Any(c => c.Category == "Clip" && c.Context.StartsWith("Second Project", StringComparison.Ordinal)), "sibling change remains against committed baseline");
+    Check(!remaining.Changes.Any(c => c.Category == "Clip" && c.Context.StartsWith(project, StringComparison.Ordinal)), "selected baseline advanced");
+    await Throws<CompanionException>(() => library.SnapshotProjectAsync(root, "../outside", "Bad scope", false, default));
+    await Throws<CompanionException>(() => library.SnapshotProjectAsync(root, "unknown", "Bad scope", false, default));
+    File.Delete(p.Set);
+    var removed = await library.SnapshotProjectAsync(root, project, "Removed selected Set", false, default);
+    Check(removed.Files.Any(f => f.Path.EndsWith(".als") && f.State.Contains('D')), "selected removal staged");
+    Check(File.Exists(siblingReport) && (await library.DiffAsync(root, default)).Changes.Any(c => c.Context.StartsWith("Second Project", StringComparison.Ordinal)), "removal preserves sibling");
+});
+Test("root project Snapshot excludes even one-letter child projects", async () =>
+{
+    using var p = new Fixture(); var root = Path.GetDirectoryName(p.Root)!;
+    Directory.CreateDirectory(Path.Combine(root, "Ableton Project Info"));
+    File.Copy(p.Set, Path.Combine(root, "0 Root.als"));
+    var child = Path.Combine(root, "A"); Directory.CreateDirectory(Path.Combine(child, "Ableton Project Info"));
+    File.Copy(p.Set, Path.Combine(child, "Child.als"));
+    var library = new LibraryService(git, reader, new()); await library.InitAsync(root, default); await p.Identity(runner);
+    var result = await library.SnapshotProjectAsync(root, ".", "Root project only", false, default);
+    Check(result.Created && result.Files.Count(f => f.Path.EndsWith(".als")) == 1 && result.Files.Any(f => f.Path == "0 Root.als"), "closest project boundary respected");
+    Check((await git.StateAsync(root, default)).Changes.Any(f => f.Path.StartsWith("A", StringComparison.Ordinal)), "child remains pending");
+});
+Test("project Snapshot ignores unreadable sibling Sets", async () =>
+{
+    using var p = new Fixture(); var root = Path.GetDirectoryName(p.Root)!;
+    var library = new LibraryService(git, reader, new()); await library.InitAsync(root, default); await p.Identity(runner);
+    var second = Path.Combine(root, "Broken sibling"); Directory.CreateDirectory(Path.Combine(second, "Ableton Project Info"));
+    await File.WriteAllTextAsync(Path.Combine(second, "Broken.als"), "broken");
+    Check((await library.SnapshotProjectAsync(root, ProjectDiscovery.Relative(root, p.Root), "Readable project", false, default)).Created, "scoped parse only");
+    await Throws<CompanionException>(() => library.SnapshotAsync(root, "All must fail", false, default));
+});
+Test("Snapshot API validates explicit scopes", async () =>
+{
+    using var p = new Fixture(); var root = Path.GetDirectoryName(p.Root)!;
+    var library = new LibraryService(git, reader, new()); await library.InitAsync(root, default); await p.Identity(runner);
+    var token = new string('A', 64); var app = ApiHost.Create(root, token, 0, all: true);
+    await app.StartAsync();
+    try
+    {
+        var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
+        using var client = new HttpClient { BaseAddress = new Uri(address) }; client.DefaultRequestHeaders.Add("X-AbletonGit-Token", token);
+        Check((await client.GetStringAsync("/api/projects")).Contains("Project with spaces"), "project choices endpoint");
+        foreach (var body in new[] { new SnapshotRequest("Bad", Scope: "project"), new SnapshotRequest("Bad", Scope: "oops"), new SnapshotRequest("Bad", Scope: "all", Project: "x") })
+            Check((await client.PostAsJsonAsync("/api/snapshot", body)).StatusCode == HttpStatusCode.BadRequest, "invalid scope rejected");
+        var response = await client.PostAsJsonAsync("/api/snapshot", new SnapshotRequest("Scoped API", Scope: "project", Project: ProjectDiscovery.Relative(root, p.Root)));
+        Check(response.IsSuccessStatusCode && (await response.Content.ReadAsStringAsync()).Contains("\"created\":true"), "project API Snapshot");
+    }
+    finally { await app.StopAsync(); await app.DisposeAsync(); }
+});
 Test("library rejects nested repositories before mutation", async () =>
 {
     using var p = new Fixture(); var root = Path.GetDirectoryName(p.Root)!; await git.InitializeAsync(p.Root, default);

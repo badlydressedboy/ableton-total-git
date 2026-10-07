@@ -73,13 +73,21 @@ Listens only at `http://127.0.0.1:17831` (`--port` can change the port). Startup
 | --- | --- | --- |
 | GET | `/api/status` | Structured status |
 | GET | `/api/project` | Fresh read-only semantic model |
+| GET | `/api/projects` | Project choices and whether library scope is available |
 | GET | `/api/history` | Recent Snapshots |
 | GET | `/api/diff` | Structured changes |
 | POST | `/api/analyse` | Generated model and updated file names |
+| POST | `/api/init` | Initialise configured repository and LFS |
 | POST | `/api/snapshot` | `{ "message": "Added dub bass variation", "push": false }` |
 | POST | `/api/push` | Push configured tracking branch |
 
-No arbitrary Git commands are exposed. Unknown Snapshot fields are rejected. See [architecture](docs/architecture.md) and [future M4L design](docs/max-for-live.md).
+Snapshot also accepts `scope: "project"` with a project identifier from `/api/projects`, or `scope: "all"` in library mode. Omitting scope preserves existing behavior. No arbitrary Git commands are exposed. Unknown Snapshot fields are rejected. See [architecture](docs/architecture.md).
+
+## Max for Live
+
+The [M4L UI and installation guide](docs/max-for-live.md) provides a **Snapshot** button with **Current project / All projects** scope, an explicit project dropdown and separate **Push**. The device starts the companion and initialises the library without PowerShell. Project Snapshots in a shared repository preserve pending sibling changes and their committed semantic baselines. Processing remains parallel, with up to four workers; Git writes are serial.
+
+Build the source package and Windows companion with `node max-for-live/package.js`, then use Max to save the supplied patch as an `.amxd` following the guide. The patch/client are implemented and tested locally; the device has not yet been loaded or verified inside Live. Current project uses your explicit dropdown selection, without automatic open-Set detection.
 
 ## Current scope
 

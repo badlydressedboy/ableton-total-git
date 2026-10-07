@@ -7,7 +7,15 @@ using AbletonGit.Infrastructure;
 
 namespace AbletonGit.Api;
 
-public sealed record SnapshotRequest(string Message, bool Push = false);
+public sealed record SnapshotRequest(string Message, bool Push = false, string? Scope = null, string? Project = null)
+{
+    public void Validate(bool all)
+    {
+        if (Scope is not null and not "all" and not "project" || Scope == "project" && all && string.IsNullOrWhiteSpace(Project) ||
+            Scope != "project" && Project is not null || !all && (Scope == "all" || Project is not null and not "."))
+            throw new CompanionException("Use scope 'project' with a selected project, or scope 'all' for a library.");
+    }
+}
 public static class ApiHost
 {
     public static WebApplication Create(string path, string token, int port = 17831, bool all = false)
@@ -42,22 +50,34 @@ public static class ApiHost
         });
         if (all)
         {
+            app.MapGet("/api/projects", (LibraryService s) => new { all = true, projects = s.Projects(path).Select(p => new { path = p, name = p }) });
+            app.MapPost("/api/init", (LibraryService s, CancellationToken ct) => s.InitAsync(path, ct));
             app.MapGet("/api/status", (LibraryService s, CancellationToken ct) => s.StatusAsync(path, ct));
             app.MapGet("/api/project", (LibraryService s, CancellationToken ct) => s.ProjectAsync(path, ct));
             app.MapGet("/api/history", (LibraryService s, CancellationToken ct) => s.HistoryAsync(path, ct));
             app.MapGet("/api/diff", (LibraryService s, CancellationToken ct) => s.DiffAsync(path, ct));
             app.MapPost("/api/analyse", (LibraryService s, CancellationToken ct) => s.AnalyseAsync(path, ct));
-            app.MapPost("/api/snapshot", (SnapshotRequest request, LibraryService s, CancellationToken ct) => s.SnapshotAsync(path, request.Message, request.Push, ct));
+            app.MapPost("/api/snapshot", (SnapshotRequest request, LibraryService s, CancellationToken ct) =>
+            {
+                request.Validate(true);
+                return request.Scope == "project" ? s.SnapshotProjectAsync(path, request.Project!, request.Message, request.Push, ct) :
+                    s.SnapshotAsync(path, request.Message, request.Push, ct);
+            });
             app.MapPost("/api/push", async (LibraryService s, CancellationToken ct) => { await s.PushAsync(path, ct); return Results.Ok(new { pushed = true }); });
             return app;
         }
+        app.MapGet("/api/projects", () => new { all = false, projects = new[] { new { path = ".", name = Path.GetFileName(ProjectDiscovery.Discover(path).Root) } } });
+        app.MapPost("/api/init", (CompanionService s, CancellationToken ct) => s.InitAsync(path, ct));
         app.MapGet("/api/status", (CompanionService s, CancellationToken ct) => s.StatusAsync(path, ct));
         app.MapGet("/api/project", (CompanionService s, CancellationToken ct) => s.ProjectAsync(path, ct));
         app.MapGet("/api/history", (CompanionService s, CancellationToken ct) => s.HistoryAsync(path, ct));
         app.MapGet("/api/diff", (CompanionService s, CancellationToken ct) => s.DiffAsync(path, ct));
         app.MapPost("/api/analyse", (CompanionService s, CancellationToken ct) => s.AnalyseAsync(path, ct));
         app.MapPost("/api/snapshot", (SnapshotRequest request, CompanionService s, CancellationToken ct) =>
-            s.SnapshotAsync(path, request.Message, request.Push, ct));
+        {
+            request.Validate(false);
+            return s.SnapshotAsync(path, request.Message, request.Push, ct);
+        });
         app.MapPost("/api/push", async (CompanionService s, CancellationToken ct) => { await s.PushAsync(path, ct); return Results.Ok(new { pushed = true }); });
         return app;
     }
