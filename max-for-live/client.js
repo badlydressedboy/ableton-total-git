@@ -1,6 +1,7 @@
 "use strict";
 const http = require("http");
 const fs = require("fs");
+const { normalizeLibraryPath } = require("./platform");
 const DEFAULT_DESCRIPTION = "Raw Creativity";
 
 // Live may save by replacing a file, producing several rename/change events.
@@ -19,20 +20,13 @@ function watchLibrary(root, onChange, onError, ready = () => true, delay = 750) 
     }
     const watcher = fs.watch(root, { recursive: true, persistent: false }, (_event, filename) => {
         if (closed) return;
-        const parts = String(filename || "").replace(/\\/g, "/").toLowerCase().split("/");
+        const eventPath = String(filename || "");
+        const parts = (process.platform === "win32" ? eventPath.replace(/\\/g, "/") : eventPath).toLowerCase().split("/");
         if (parts.some(part => [".git", ".abletongit", "backup"].includes(part)) || /\.(asd|tmp)$/.test(parts.at(-1))) return;
         dirty = true; schedule();
     });
     watcher.on("error", error => { watcher.close(); clearTimeout(timer); closed = true; onError(error); });
     return { close() { closed = true; clearTimeout(timer); watcher.close(); } };
-}
-
-function normalizeLibraryPath(value) {
-    let result = String(value ?? "").trim();
-    if (result.length >= 2 && ((result.startsWith('"') && result.endsWith('"')) ||
-        (result.startsWith("'") && result.endsWith("'")))) result = result.slice(1, -1).trim();
-    // Windows accepts slash separators; retain the two leading separators in UNC paths.
-    return result.replace(/\\/g, "/");
 }
 
 // Fixed loopback transport. The device never passes commands to a shell or Git.

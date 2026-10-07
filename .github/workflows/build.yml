@@ -1,8 +1,18 @@
 name: Build and test
 on: [push, pull_request]
 jobs:
-  windows:
-    runs-on: windows-latest
+  platform:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            runtime: win-x64
+          - os: macos-15-intel
+            runtime: osx-x64
+          - os: macos-15
+            runtime: osx-arm64
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -10,7 +20,17 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - run: git lfs version
       - run: dotnet restore AbletonGit.sln --configfile NuGet.Config
       - run: dotnet build AbletonGit.sln -c Release --no-restore
       - run: dotnet run --project tests/AbletonGit.Tests -c Release --no-build --no-restore
+      - run: node max-for-live/package.js
+      - run: node --test max-for-live/client.test.js max-for-live/platform.test.js
+      - run: node max-for-live/package.js --runtime ${{ matrix.runtime }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: max-for-live-${{ matrix.runtime }}
+          path: artifacts/max-for-live-${{ matrix.runtime }}.zip

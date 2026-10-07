@@ -99,6 +99,26 @@ Test("external/missing media, no absolute path leaks", async () =>
     await p.Save(Fixture.Xml().Replace("bass.wav", "missing.wav"));
     Check((await reader.ReadAsync(p.Location)).Dependencies.Single().State == "missing", "missing sample");
 });
+Test("media references from Windows and macOS remain external on either host", async () =>
+{
+    using var p = new Fixture();
+    foreach (var absolute in new[] { "C:\\Private Music\\Library\\bass.wav", "/Users/private/Music/bass.wav" })
+    {
+        await p.Save(Fixture.Xml().Replace("<RelativePath Value=\"Samples/Imported/bass.wav\" />", "<Path Value=\"" + absolute + "\" />"));
+        var model = await reader.ReadAsync(p.Location);
+        Check(model.Dependencies.Single().State == "external", "foreign absolute path is not project-relative");
+        Check(!ModelJson.Serialize(model).Contains("Private Music") && !ModelJson.Serialize(model).Contains("/Users/private"), "private paths redacted");
+    }
+    await p.Save(Fixture.Xml().Replace("Samples/Imported/bass.wav", "Samples\\Imported\\bass.wav"));
+    Check((await reader.ReadAsync(p.Location)).Dependencies.Single().State == "local", "portable relative media reference");
+});
+Test("repository relative paths preserve literal backslashes on POSIX", () =>
+{
+    using var p = new Fixture();
+    var relative = ProjectDiscovery.Relative(p.Root, Path.Combine(p.Root, "literal\\name.als"));
+    Check(relative == (OperatingSystem.IsWindows() ? "literal/name.als" : "literal\\name.als"), "native separator semantics");
+    return Task.CompletedTask;
+});
 Test("discovery from folder, ALS, nested samples with Unicode and spaces", () =>
 {
     using var p = new Fixture();

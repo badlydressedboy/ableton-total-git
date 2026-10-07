@@ -5,6 +5,7 @@ const path = require("path");
 const { spawn } = require("child_process");
 const { Client, normalizeLibraryPath, watchLibrary } = require("./client");
 const { Preferences } = require("./preferences");
+const { companionExecutable, gitEnvironment, gitStatusLaunch } = require("./platform");
 const client = new Client((kind, ...values) => {
     if (kind === "console") { max.post("Ableton Git: " + values.join(" ")); return; }
     if (["status", "warning", "detail"].includes(kind)) {
@@ -37,17 +38,13 @@ max.addHandler("gitstatus", () => client.run(async () => {
     const root = path.resolve(library);
     if (!library || !path.isAbsolute(library) || !fs.statSync(root).isDirectory())
         throw new Error("Enter a valid library folder before opening Git status.");
-    const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
-    // A direct spawn with ignored stdin exits even with -NoExit. Start-Process
-    // creates a separate interactive console. The folder stays a literal cwd.
-    const launch = "$ErrorActionPreference = 'Stop'; Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\\WindowsPowerShell\\v1.0\\powershell.exe') -WorkingDirectory (Get-Location).Path -ArgumentList @('-NoLogo', '-NoProfile', '-NoExit', '-Command', 'git status') -WindowStyle Normal";
-    const launcher = spawn(powershell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(launch, "utf16le").toString("base64")],
-        { cwd: root, shell: false, stdio: "ignore", windowsHide: true });
+    const launch = gitStatusLaunch(root);
+    const launcher = spawn(launch.file, launch.args, launch.options);
     await new Promise((resolve, reject) => {
         launcher.once("error", reject);
-        launcher.once("exit", code => code === 0 ? resolve() : reject(new Error("Unable to open the PowerShell window.")));
+        launcher.once("exit", code => code === 0 ? resolve() : reject(new Error("Unable to open " + launch.label + ". Check system automation permissions.")));
     });
-    client.emit("status", "Opened PowerShell with Git status for the library.");
+    client.emit("status", "Opened " + launch.label + " with Git status for the library.");
 }, false));
 max.addHandler("refresh", () => client.run(async () => {
     if (!client.token) throw new Error("Start the companion first.");
@@ -58,12 +55,12 @@ function startCompanion() { return client.run(async () => {
     const root = path.resolve(library);
     if (!library || !path.isAbsolute(library) || !fs.statSync(root).isDirectory())
         throw new Error("Enter the full path to your Ableton projects library folder.");
-    const executable = path.join(__dirname, "companion", "AbletonGit.Api.exe");
+    const executable = companionExecutable(__dirname);
     if (!fs.existsSync(executable)) throw new Error("Missing companion folder. Use the published M4L package.");
     try { preferences.saveLibrary(root); }
     catch { max.post("Ableton Git: Unable to save the library folder preference. The companion can still run."); }
     client.emit("status", "Starting companion...");
-    child = spawn(executable, ["--all", "--path", root], { cwd: path.dirname(executable), shell: false, windowsHide: true });
+    child = spawn(executable, ["--all", "--path", root], { cwd: path.dirname(executable), shell: false, windowsHide: true, env: gitEnvironment() });
     const owned = child;
     owned.once("spawn", () => { if (child === owned) client.setRunning(true); });
     owned.on("exit", () => { if (child === owned) { stopWatching(); child = null; client.disconnect(); client.emit("status", "Companion stopped."); } });

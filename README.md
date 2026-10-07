@@ -1,12 +1,12 @@
 # Ableton Git Companion
 
-A Windows-first .NET 10 companion that turns saved Ableton projects into **Snapshots**: musical descriptions, semantic JSON/Markdown history, original ALS files, and project-local audio stored using Git LFS.
+A Windows and macOS .NET 10 companion that turns saved Ableton projects into **Snapshots**: musical descriptions, semantic JSON/Markdown history, original ALS files, and project-local audio stored using Git LFS.
 
-The CLI is the first product. A loopback HTTP API uses the same services. Ableton remains authoritative: this application reads Sets and never rewrites them. It does not create GitHub repositories, publish automatically, restore projects, or implement a Max for Live device.
+The CLI and loopback HTTP API share the same services. Ableton remains authoritative: this application reads Sets and never rewrites them. A Max for Live UI launches the companion and previews, commits and pushes changes; see [installation instructions](docs/max-for-live.md). GitHub repository creation and restoring projects remain manual operations.
 
 ## Requirements and build
 
-Windows 11, the .NET 10 SDK, [Git for Windows](https://gitforwindows.org/) and [Git LFS](https://git-lfs.com/). Configure your Git author name/email using your existing Git tools. GitHub and Ableton Live are not needed to build or test.
+Windows or macOS, the .NET 10 SDK, Git ([Git for Windows](https://gitforwindows.org/) on Windows) and [Git LFS](https://git-lfs.com/). Self-contained Max for Live packages include the .NET runtime. Configure your Git author name/email using your existing Git tools. GitHub and Ableton Live are not needed to build or test.
 
 ```powershell
 dotnet restore AbletonGit.sln --configfile NuGet.Config
@@ -88,7 +88,7 @@ Snapshot also accepts `scope: "project"` with a project identifier from `/api/pr
 
 The [M4L UI and installation guide](docs/max-for-live.md) provides a **Snapshot** button with **Current project / All projects** scope, an explicit project dropdown and separate **Push**. The device starts the companion and initialises the library without PowerShell. Project Snapshots in a shared repository preserve pending sibling changes and their committed semantic baselines. Processing remains parallel, with up to four workers; Git writes are serial.
 
-Build the source package and Windows companion with `node max-for-live/package.js`, then use Max to save the supplied patch as an `.amxd` following the guide. The patch/client are implemented and tested locally; the device has not yet been loaded or verified inside Live. Current project uses your explicit dropdown selection, without automatic open-Set detection.
+Build the development package with `node max-for-live/package.js`, or a self-contained Windows/macOS package with `node max-for-live/package.js --runtime win-x64` (also `osx-x64` or `osx-arm64`), then use Max to save the supplied patch as an `.amxd` following the guide. The patch/client are implemented and tested locally; the device has not yet been loaded or verified inside Live. Current project uses your explicit dropdown selection, without automatic open-Set detection.
 
 ## Current scope
 

@@ -145,7 +145,13 @@ public sealed class AlsReader : ISetReader
         {
             try
             {
-                var full = Path.GetFullPath(candidate.Replace('/', Path.DirectorySeparatorChar), location.Root);
+                // Absolute references from a Set saved on another OS are external.
+                var windowsAbsolute = candidate.StartsWith("\\\\", StringComparison.Ordinal) ||
+                    (candidate.Length >= 3 && char.IsAsciiLetter(candidate[0]) && candidate[1] == ':' && candidate[2] is '/' or '\\');
+                if ((!OperatingSystem.IsWindows() && windowsAbsolute) ||
+                    (OperatingSystem.IsWindows() && candidate.StartsWith('/') && !candidate.StartsWith("//", StringComparison.Ordinal)))
+                    return new(name ?? candidate.Replace('\\', '/').Split('/').Last(), "external");
+                var full = Path.GetFullPath(candidate.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar), location.Root);
                 if (ProjectDiscovery.IsWithin(location.Root, full))
                     return new(ProjectDiscovery.Relative(location.Root, full), File.Exists(full) ? "local" : "missing");
                 return new(name ?? Path.GetFileName(candidate.Replace('\\', '/')), "external");

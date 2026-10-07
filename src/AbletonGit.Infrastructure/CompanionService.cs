@@ -213,7 +213,7 @@ public sealed class CompanionService(IGitRepository git, ISetReader reader, Meta
     private async Task ToolsAsync(string directory, CancellationToken ct)
     {
         foreach (var lfs in new[] { false, true }) if ((await git.VersionAsync(lfs, directory, ct)).ExitCode != 0)
-            throw new CompanionException(lfs ? "Git LFS is unavailable. Install Git LFS before Init or Snapshot." : "Git is unavailable. Install Git for Windows.");
+            throw new CompanionException(lfs ? "Git LFS is unavailable. Install Git LFS before Init or Snapshot." : "Git is unavailable. Install Git.");
     }
     internal static async Task<string> Hash(string path, CancellationToken ct)
     {

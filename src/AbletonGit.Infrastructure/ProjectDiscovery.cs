@@ -32,7 +32,7 @@ public static class ProjectDiscovery
         EnsureSafePath(root.FullName, root.FullName);
         var sets = EnumerateFiles(root.FullName).Where(p => p.EndsWith(".als", StringComparison.OrdinalIgnoreCase))
             .OrderBy(p => Relative(root.FullName, p), StringComparer.Ordinal).ToList();
-        if (selected is not null && !sets.Contains(selected, StringComparer.OrdinalIgnoreCase))
+        if (selected is not null && !sets.Contains(selected, OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal))
             throw new CompanionException("The selected Set is outside the project or in an excluded folder such as Backup.");
         if (sets.Count == 0) throw new CompanionException("No .als Sets found in this project.");
         if (selected is null && sets.Count > 1)
@@ -61,7 +61,7 @@ public static class ProjectDiscovery
             }
         }
     }
-    public static string Relative(string root, string path) => Path.GetRelativePath(root, path).Replace('\\', '/');
+    public static string Relative(string root, string path) => OperatingSystem.IsWindows() ? Path.GetRelativePath(root, path).Replace('\\', '/') : Path.GetRelativePath(root, path);
     public static bool IsAudio(string path) => new[] { ".wav", ".aif", ".aiff", ".flac" }.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
     public static bool IsWithin(string root, string path)
     {

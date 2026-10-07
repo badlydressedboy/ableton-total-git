@@ -49,11 +49,11 @@ test("library paths accept both slash styles, quotes, spaces, Unicode and UNC", 
     const expected = "G:/My Drive/Music/Ableton/Projects/Live Sets";
     for (const input of [expected, String.raw`G:\My Drive\Music\Ableton\Projects\Live Sets`,
         String.raw`  "G:\My Drive\Music/Ableton\Projects/Live Sets"  `])
-        assert.equal(normalizeLibraryPath(input), expected);
-    assert.equal(normalizeLibraryPath(String.raw`'C:\Music  Library\音 Project'`), "C:/Music  Library/音 Project");
-    assert.equal(normalizeLibraryPath(String.raw`\\server\Music Share\音 Project`), "//server/Music Share/音 Project");
+        assert.equal(normalizeLibraryPath(input, "win32"), expected);
+    assert.equal(normalizeLibraryPath(String.raw`'C:\Music  Library\音 Project'`, "win32"), "C:/Music  Library/音 Project");
+    assert.equal(normalizeLibraryPath(String.raw`\\server\Music Share\音 Project`, "win32"), "//server/Music Share/音 Project");
     assert.equal(normalizeLibraryPath("  "), "");
-    assert.equal(normalizeLibraryPath("relative\\folder"), "relative/folder");
+    assert.equal(normalizeLibraryPath("relative\\folder", "win32"), "relative/folder");
 });
 test("library preference survives reloads, normalises paths and repairs malformed storage", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "AbletonGit-preferences-"));
@@ -61,9 +61,9 @@ test("library preference survives reloads, normalises paths and repairs malforme
         const filename = path.join(root, "settings", "preferences.json"), preferences = new Preferences(filename);
         assert.equal(preferences.loadLibrary(), "");
         preferences.saveLibrary(String.raw`"G:\My Drive\Music\音 Library"`);
-        assert.equal(new Preferences(filename).loadLibrary(), "G:/My Drive/Music/音 Library");
+        assert.equal(new Preferences(filename).loadLibrary(), normalizeLibraryPath(String.raw`"G:\My Drive\Music\音 Library"`));
         preferences.saveLibrary(String.raw`\\server\Music Share\Projects`);
-        assert.equal(new Preferences(filename).loadLibrary(), "//server/Music Share/Projects");
+        assert.equal(new Preferences(filename).loadLibrary(), normalizeLibraryPath(String.raw`\\server\Music Share\Projects`));
         fs.writeFileSync(filename, "broken JSON"); assert.throws(() => preferences.loadLibrary());
         preferences.saveLibrary("C:/New Library"); assert.equal(preferences.loadLibrary(), "C:/New Library");
         assert.deepEqual(fs.readdirSync(path.dirname(filename)), ["preferences.json"]);
@@ -181,7 +181,7 @@ test("startup preflight gates writes, reports failures and supports recovery", a
     assert.equal(client.token, null); assert.equal(client.toolsReady, false);
     assert(requests.every(r => r[0] === "GET" && r[1] === "/api/tools"));
 });
-const packagePath = path.resolve(__dirname, "../artifacts/max-for-live");
+const packagePath = process.env.ABLETON_GIT_TEST_PACKAGE || path.resolve(__dirname, "../artifacts/max-for-live");
 test("background reads keep Refresh and available actions stable while a manual action locks them", async () => {
     const events = []; let finish, slow = false;
     const client = new Client((...e) => events.push(e), async (method, endpoint) => {
@@ -344,7 +344,7 @@ test("large warning lists go to console and leave Snapshot status readable", asy
     assert.deepEqual(events.filter(e => e[0] === "status").at(-1), ["status", "Snapshot saved: abcdef012345"]);
 });
 test("device startup with no Git on PATH reports repair guidance and keeps writes disabled", {
-    skip: !fs.existsSync(path.join(packagePath, "companion/AbletonGit.Api.exe"))
+    skip: !fs.existsSync(path.join(packagePath, "companion/AbletonGit.Api" + (process.platform === "win32" ? ".exe" : "")))
 }, async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "AbletonGit-missing-tools-"));
     const testPort = await unusedPort();
@@ -361,7 +361,7 @@ test("device startup with no Git on PATH reports repair guidance and keeps write
         handlers.get("library")(root);
         assert.equal(await handlers.get("start")(), false);
         assert(!events.some(e => e[0] === "status" && e[1].startsWith("Ready.")));
-        assert(events.some(e => e[0] === "console" && e[1].includes("Install Git for Windows") && e[1].includes("PATH")), JSON.stringify(events));
+        assert(events.some(e => e[0] === "console" && e[1].includes("Install Git") && e[1].includes("PATH")), JSON.stringify(events));
         assert(!events.some(e => e[0] === "mutations" && e[1] === 1));
         assert.equal(await handlers.get("snapshot")(), false);
         assert.equal(await handlers.get("push")(), false);
@@ -386,11 +386,13 @@ test("Git status opens a visible persistent PowerShell with the library as a lit
         handlers.get("library")(library);
         assert.equal(await handlers.get("gitstatus")(), true);
         const [executable, args, options] = launches[0];
+        if (process.platform === "win32") {
         assert.equal(path.basename(executable).toLowerCase(), "powershell.exe");
         assert.deepEqual(args.slice(0, 4), ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand"]);
         const launch = Buffer.from(args[4], "base64").toString("utf16le");
         assert(launch.includes("Start-Process") && launch.includes("'-NoExit'") && launch.includes("'git status'"));
         assert(launch.includes("-WindowStyle Normal")); assert(!launch.includes(library));
+        } else { assert.equal(executable, "/usr/bin/osascript"); assert(args.includes("do script (item 1 of argv)")); }
         assert.equal(options.cwd, library); assert.equal(options.shell, false);
         assert.equal(options.windowsHide, true, "only the short-lived launcher is hidden");
         handlers.get("library")(path.join(root, "missing"));

@@ -342,6 +342,6 @@ public sealed class LibraryService(IGitRepository git, ISetReader reader, Metada
     private async Task Tools(string root, CancellationToken ct)
     {
         foreach (var lfs in new[] { false, true }) if ((await git.VersionAsync(lfs, root, ct)).ExitCode != 0)
-            throw new CompanionException(lfs ? "Install Git LFS before library operations." : "Install Git for Windows before library operations.");
+            throw new CompanionException(lfs ? "Install Git LFS before library operations." : "Install Git before library operations.");
     }
 }

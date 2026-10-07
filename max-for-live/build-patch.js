@@ -97,5 +97,5 @@ box("filecolumns", "message", "col 0 width 45, col 1 width 850", [930, 900, 230,
 const patch = { patcher: { fileversion: 1, appversion: { major: 8, minor: 6, revision: 5, architecture: "x64", modernui: 1 },
     classnamespace: "box", rect: [0, 0, 930, 1200], openinpresentation: 1, devicewidth: 930,
     default_fontsize: 12, default_fontface: 0, default_fontname: "Arial", boxes, lines,
-    dependency_cache: ["device.js", "client.js", "preferences.js"].map(name => ({ name, bootpath: ".", type: "TEXT", implicit: 1 })) } };
+    dependency_cache: ["device.js", "client.js", "preferences.js", "platform.js"].map(name => ({ name, bootpath: ".", type: "TEXT", implicit: 1 })) } };
 fs.writeFileSync(path.join(__dirname, "Ableton Git.maxpat"), JSON.stringify(patch, null, 2) + "\n");

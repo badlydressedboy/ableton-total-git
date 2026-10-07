@@ -15,7 +15,7 @@ public sealed class ToolCheckService(IGitRepository git)
         async Task<Diagnostic> Check(bool lfs)
         {
             var name = lfs ? "Git LFS" : "Git";
-            var repair = $"Install {(lfs ? "Git LFS" : "Git for Windows")} and ensure it is on PATH. Restart Live and the companion after installation/PATH changes.";
+            var repair = $"Install {(lfs ? "Git LFS" : "Git")} and ensure it is on PATH. Restart Live and the companion after installation/PATH changes.";
             try
             {
                 var version = await git.VersionAsync(lfs, directory, ct);

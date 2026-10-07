@@ -46,7 +46,7 @@ public sealed class MetadataWriter
     }
     public async Task<IReadOnlyList<string>> WriteAsync(string root, ProjectModel model, CancellationToken ct, string metadataDirectory = ".abletongit")
     {
-        return await ApplyAsync(root, Render(model).ToDictionary(p => metadataDirectory.Replace('\\', '/') + "/" + p.Key, p => (string?)p.Value, StringComparer.Ordinal), ct);
+        return await ApplyAsync(root, Render(model).ToDictionary(p => (OperatingSystem.IsWindows() ? metadataDirectory.Replace('\\', '/') : metadataDirectory) + "/" + p.Key, p => (string?)p.Value, StringComparer.Ordinal), ct);
     }
     public async Task<IReadOnlyList<string>> ApplyAsync(string root, IReadOnlyDictionary<string, string?> generated, CancellationToken ct)
     {

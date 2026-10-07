@@ -1,11 +1,10 @@
 "use strict";
 const fs = require("fs");
 const path = require("path");
-const os = require("os");
-const { normalizeLibraryPath } = require("./client");
+const { normalizeLibraryPath, preferencesFile } = require("./platform");
 
 class Preferences {
-    constructor(filename = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "AbletonGit", "max-for-live.json")) {
+    constructor(filename = preferencesFile()) {
         this.filename = filename;
     }
     loadLibrary() {

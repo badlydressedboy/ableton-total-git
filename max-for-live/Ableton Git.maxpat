@@ -2235,6 +2235,12 @@
         "bootpath": ".",
         "type": "TEXT",
         "implicit": 1
+      },
+      {
+        "name": "platform.js",
+        "bootpath": ".",
+        "type": "TEXT",
+        "implicit": 1
       }
     ]
   }

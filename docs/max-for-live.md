@@ -1,6 +1,6 @@
 # Max for Live UI
 
-The implemented source patch is `max-for-live/Ableton Git.maxpat`. It uses Node for Max as a thin loopback API client. It starts the Windows companion directly, using arguments rather than a shell; the companion owns Git, LFS, parsing and repository locks. No PowerShell is needed for routine device operations.
+The implemented source patch is `max-for-live/Ableton Git.maxpat`. It uses Node for Max as a thin loopback API client. It starts the Windows or macOS companion directly, using arguments rather than a shell; the companion owns Git, LFS, parsing and repository locks. No PowerShell is needed for routine device operations.
 
 ```text
 ABLETON GIT                    Save in Live before Snapshot
@@ -13,18 +13,22 @@ Snapshot saved: a123456789ab
 
 ## Package and install
 
-Prerequisites: Windows, Ableton Live with Max for Live / Node for Max, .NET 10 **ASP.NET Core Runtime** (or the .NET 10 SDK), Git for Windows and Git LFS. Configure your Git author and, for Push, the library's remote/tracking branch and authentication through your existing Git tools.
+Prerequisites: Windows or macOS, Ableton Live with Max for Live / Node for Max, Git and Git LFS. Runtime-specific packages include .NET; only the default development package requires the .NET 10 **ASP.NET Core Runtime** (or SDK). Configure your Git author and, for Push, the library's remote/tracking branch and authentication through your existing Git tools.
 
-The source package is `artifacts/max-for-live/`. To rebuild it from this repository after restoring the solution, run `node max-for-live/package.js` with Node installed. The device itself uses Max's bundled Node; it has no npm dependencies.
+Choose `artifacts/max-for-live-win-x64.zip` for Windows, `artifacts/max-for-live-osx-arm64.zip` for Apple Silicon, or `artifacts/max-for-live-osx-x64.zip` for Intel Macs. Extract the complete archive into a permanent writable folder. The development source package is `artifacts/max-for-live/`. To rebuild it from this repository after restoring the solution, run `node max-for-live/package.js` with Node installed. The device itself uses Max's bundled Node; it has no npm dependencies.
+
+Build a self-contained package with `node max-for-live/package.js --runtime win-x64`, `--runtime osx-arm64` or `--runtime osx-x64`. These builds download official .NET runtime packs from NuGet. ZIP packages preserve the macOS executable permission. Use `--output artifacts/my-package` to build separately from a running companion. CI builds and tests on Windows, Intel macOS and Apple Silicon macOS.
+
+On macOS, install Git and Git LFS using your existing Git installer or Homebrew (`brew install git git-lfs`). Live launched from Finder also searches `/opt/homebrew/bin` and `/usr/local/bin`. Settings are saved under `~/Library/Application Support/AbletonGit/max-for-live.json`; Windows retains `%LOCALAPPDATA%\AbletonGit\max-for-live.json`. macOS packages use the SDK's ad hoc signature and are not Developer ID signed or notarized; native Live/Max operation and macOS security prompts still need validation on a Mac. The Git status button can request permission to control Terminal; allow that request in macOS Automation settings if you want to use it.
 
 Create the actual `.amxd` using Max:
 
-1. Keep `Ableton Git.maxpat`, `device.js`, `client.js`, `preferences.js` and the `companion/` directory together in a permanent folder.
+1. Keep `Ableton Git.maxpat`, `device.js`, `client.js`, `preferences.js`, `platform.js` and the `companion/` directory together in a permanent folder.
 2. In Live, add a new **Max Audio Effect** to a track and click its Edit button.
 3. In Max, open `Ableton Git.maxpat`, unlock it, select all its objects and copy them. In the new device's main patcher, unlock, remove the template's objects, and paste the copied objects. This includes stereo `plugin~` → `plugout~` connections.
 4. Enable **Open in Presentation** in the device patcher's Inspector and set **Device Width** to `930`. Save the device as **Ableton Git.amxd in the same folder as the JS files**. Close the editor and use the device in Live. Controls fit inside Live's device panel; open the Max window to see the full expanded file list.
 
-Keep the device **unfrozen** and keep its external files beside it. Moving only the `.amxd` breaks the companion lookup. The package is source plus a published Windows companion; a Max installation must save the device container. Rendering, audio pass-through and Node startup have not been verified inside Live in this environment. See Cycling '74's [Node for Max device packaging guide](https://docs.cycling74.com/legacy/max8/vignettes/03_n4m_projects_devices).
+Keep the device **unfrozen** and keep its external files beside it. Moving only the `.amxd` breaks the companion lookup. The package is source plus a published companion for the selected operating system; a Max installation must save the device container. Rendering, audio pass-through and Node startup have not been verified inside Live in this environment. See Cycling '74's [Node for Max device packaging guide](https://docs.cycling74.com/legacy/max8/vignettes/03_n4m_projects_devices).
 
 ## Everyday use
 
@@ -40,13 +44,13 @@ Description starts with the editable default **Raw Creativity**. Creating a comm
 
 While the companion is running, a recursive folder watcher detects saved Sets, changed media, and added or removed files. It waits 750ms after the last event before refreshing projects and the selected file preview, and queues scans behind active operations. Git internals, generated `.abletongit` reports, Backup folders and `.asd` caches do not trigger scans. Stop closes the watcher. Five-second polling remains a fallback if the filesystem watcher is unavailable or misses an event. Automatic scans never create commits or push.
 
-**Git status**, beside the file count, opens a visible Windows PowerShell window in the configured library folder, runs `git status`, and keeps the window open. It reports the entire repository's status regardless of the selected project scope. The folder is supplied as the process working directory rather than inserted into a shell command. The companion does not need to be running to use this button; a valid folder is required.
+**Git status**, beside the file count, opens a visible PowerShell window on Windows or Terminal window on macOS in the configured library folder, runs `git status`, and keeps the window open. It reports the entire repository's status regardless of the selected project scope. On Windows the folder is supplied as the process working directory. On macOS it is quoted as a literal shell argument and passed to a fixed AppleScript as data. The companion does not need to be running to use this button; a valid folder is required.
 
 To upgrade an existing device: click Stop, replace the package's JS files and `companion/` folder, and replace the device's main patch objects with those from the updated `Ableton Git.maxpat`, using the install steps above. Set Device Width to `930` and save the `.amxd` again. This update adds new patch objects and wires; replacing JS alone does not add the list or independent button controls. The file panel is inside the original 930px device width. Long paths can be read with its horizontal scrollbar, and manual Refresh projects repaints the list.
 
 Snapshot status stays on its own line. Warnings appear as a short count, and each complete warning is posted to the Max Console. Long error messages are shortened in the UI and preserved in full in the console. Updating `device.js` and `client.js` fixes overflow in existing devices too; the newer patch also separates the scope reminder from the warning count.
 
-Library folder accepts forward slashes, Windows backslashes or mixed separators, including paths pasted with surrounding quotes. Spaces, Unicode and UNC shares are preserved. The path field outputs one literal symbol so Max does not interpret backslashes or split the path into messages; the client normalises separators before launching the companion. See the [textedit reference](https://docs.cycling74.com/reference/textedit/) for its single-symbol output mode.
+Library folder accepts forward slashes, Windows backslashes or mixed separators on Windows, including paths pasted with surrounding quotes. macOS preserves native POSIX paths (including literal backslashes) and expands `~/` to your home folder. Spaces, Unicode and UNC shares are preserved. The path field outputs one literal symbol so Max does not interpret backslashes or split the path into messages; the client normalises separators before launching the companion. See the [textedit reference](https://docs.cycling74.com/reference/textedit/) for its single-symbol output mode.
 
 1. Enter the full **parent library folder** path, then click **Start companion**. Before showing Ready, the companion checks that `git --version` and `git lfs version` succeed in its process environment. Initialise, Snapshot and Push remain disabled until both checks pass, and are disabled again when the companion stops. Missing tools show installation/PATH guidance; after installing tools or changing PATH, restart Live and the companion. **Refresh projects** also checks tools again. Use one device/companion instance per library. The device launches a hidden companion process and obtains its fresh token in memory; it never saves the token in the Set or prints it to the Max console. Port `17831` must be free.
 2. Click **Initialise library** once for a new library. This creates the parent Git repository if needed, installs local LFS rules and generates reports. Existing nested project repositories are refused; migration remains a separate task.
