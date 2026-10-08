@@ -1,5 +1,11 @@
 name: Build and test
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+permissions:
+  contents: read
 jobs:
   platform:
     strategy:
@@ -8,10 +14,11 @@ jobs:
         include:
           - os: windows-latest
             runtime: win-x64
-          - os: macos-15-intel
-            runtime: osx-x64
-          - os: macos-15
-            runtime: osx-arm64
+          # Other platforms are paused until contributors validate native Live/Max.
+          # - os: macos-15-intel
+          #   runtime: osx-x64
+          # - os: macos-15
+          #   runtime: osx-arm64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -23,6 +30,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validate release version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+$') { throw 'Use a vMAJOR.MINOR.PATCH release tag.' }
+          [xml]$metadata = Get-Content Directory.Build.props
+          if ($env:RELEASE_TAG -ne ('v' + $metadata.Project.PropertyGroup.Version)) { throw 'Release tag must match Directory.Build.props Version.' }
+          if (-not (Test-Path -LiteralPath "docs/releases/$env:RELEASE_TAG.md")) { throw 'Add release notes before tagging.' }
       - run: git lfs version
       - run: dotnet restore AbletonGit.sln --configfile NuGet.Config
       - run: dotnet build AbletonGit.sln -c Release --no-restore
@@ -30,7 +47,41 @@ jobs:
       - run: node max-for-live/package.js
       - run: node --test max-for-live/client.test.js max-for-live/platform.test.js max-for-live/file-list.test.js
       - run: node max-for-live/package.js --runtime ${{ matrix.runtime }}
+      - name: Generate package checksum
+        shell: pwsh
+        env:
+          PACKAGE_RUNTIME: ${{ matrix.runtime }}
+        run: |
+          $package = "artifacts/max-for-live-$env:PACKAGE_RUNTIME.zip"
+          $hash = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
+          $filename = Split-Path $package -Leaf
+          [IO.File]::WriteAllText("$package.sha256", "$hash  $filename`n", [Text.UTF8Encoding]::new($false))
       - uses: actions/upload-artifact@v4
         with:
           name: max-for-live-${{ matrix.runtime }}
-          path: artifacts/max-for-live-${{ matrix.runtime }}.zip
+          path: |
+            artifacts/max-for-live-${{ matrix.runtime }}.zip
+            artifacts/max-for-live-${{ matrix.runtime }}.zip.sha256
+          if-no-files-found: error
+  release:
+    name: Publish Windows release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: platform
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: max-for-live-win-x64
+          path: artifacts/release
+      - name: Publish package and checksum
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create $env:RELEASE_TAG artifacts/release/max-for-live-win-x64.zip artifacts/release/max-for-live-win-x64.zip.sha256 --verify-tag --title "Ableton Total Git $env:RELEASE_TAG - Windows" --notes-file "docs/releases/$env:RELEASE_TAG.md" --latest
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub release publishing failed.' }

@@ -1,4 +1,4 @@
-﻿# Ableton Total Git
+# Ableton Total Git
 
 Keep a Git history of your Ableton projects without leaving Live. Ableton Total Git is a Max for Live device that shows which saved files have changed and lets you commit and push your library from your device chain.
 
@@ -17,15 +17,15 @@ Save your work, review the file list, add a comment about the moment, and press 
 
 ## Get started
 
-You need Ableton Live with **Max for Live / Node for Max**, [Git](https://git-scm.com/) and [Git LFS](https://git-lfs.com/). Set your Git author name and email before your first commit. Uploading to GitHub also requires an existing repository and Git authentication.
+You need Windows x64, Ableton Live with **Max for Live / Node for Max**, [Git](https://git-scm.com/) and [Git LFS](https://git-lfs.com/). Set your Git author name and email before your first commit. Uploading to GitHub also requires an existing repository and Git authentication.
 
-1. Download the package for Windows, Apple Silicon Mac or Intel Mac from a successful [GitHub Actions build](https://github.com/badlydressedboy/ableton-total-git/actions/workflows/build.yml).
+1. [Download the Windows x64 device ZIP](https://github.com/badlydressedboy/ableton-total-git/releases/latest/download/max-for-live-win-x64.zip) from the [latest release](https://github.com/badlydressedboy/ableton-total-git/releases/latest). Windows is the only released platform for now; contributions toward other platforms are welcome.
 2. Extract the complete package into a permanent writable folder, such as a dedicated folder in your User Library's Max Audio Effects presets. Keep the device, its JavaScript files and the `companion` folder together.
 3. Drag **Ableton Total Git.amxd** into Live. An audio track or the Master track works well.
 4. Enter the parent folder containing your Ableton projects in **Library folder**, then press Tab or Enter. The companion starts automatically.
 5. Click **Initialise repo** if needed. Paste an optional existing GitHub repository URL in the prompt, or leave it blank for local-only history.
 
-The platform packages include the companion runtime. For package selection, installation and troubleshooting, see the [Max for Live device guide](docs/max-for-live.md).
+The Windows package includes the companion runtime. For package selection, installation and troubleshooting, see the [Max for Live device guide](docs/max-for-live.md).
 
 ## Everyday use
 
@@ -40,15 +40,17 @@ Hover over controls with Live's **Info View** open for help, including explanati
 
 - [Device installation, controls and troubleshooting](docs/max-for-live.md)
 - [Project libraries](docs/project-library.md) and [Git LFS media storage](docs/git-lfs.md)
-- [Build from source](docs/building.md) and [testing](docs/testing.md)
+- [Build from source](docs/building.md), [testing](docs/testing.md) and [release process](docs/releasing.md)
 - [Command-line and local API reference](docs/command-line.md)
 - [Architecture](docs/architecture.md), [ALS format](docs/als-format.md) and [prior art](docs/prior-art.md)
 - [Current status and limitations](docs/limitations.md)
 
-This is an early project; real-project compatibility and native Windows/macOS device behaviour are still being validated.
+This is an early Windows release; real-project compatibility and native Live/Max behaviour are still being validated. Other platforms are paused while contributors help with validation.
 
 ## Contributing and licence
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for bug reports, development and pull requests.
+Help shape the device around real Ableton workflows. [Suggest a feature](https://github.com/badlydressedboy/ableton-total-git/issues/new?template=feature_request.md), share a reproducible bug, improve the docs, or open a focused pull request. Collaboration on new features and future platform support is welcome; you do not need to write code to contribute useful ideas and testing.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to discuss an idea and get started.
 
 Licensed under the [MIT licence](LICENSE). Music, samples and other assets you track retain their own rights. Ableton Total Git is an independent project and is not affiliated with or endorsed by Ableton or Cycling '74.

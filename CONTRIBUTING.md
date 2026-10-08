@@ -1,6 +1,14 @@
 # Contributing to Ableton Total Git
 
-Bug reports, documentation improvements and focused pull requests are welcome.
+Help shape Ableton Total Git around the way people actually work in Live. Feature ideas, usability feedback, testing, documentation improvements and focused pull requests are welcome.
+
+## Collaborate on a feature
+
+Open a [feature request](https://github.com/badlydressedboy/ableton-total-git/issues/new?template=feature_request.md) describing the Ableton workflow, where it falls short, and what you would like to happen. Screenshots or a small example can help. You do not need to have an implementation ready.
+
+For a larger change, discuss the approach in an issue before starting a pull request so contributors can agree on scope and avoid duplicated work. Offer to test another contributor's branch, share results from your Live/Max setup, or take on a small part of a feature. Windows x64 is the current release target; help validating and developing other platforms is particularly welcome.
+
+## Report a bug
 
 For bugs, include your operating system, Live/Max version, Git/Git LFS versions,
 steps to reproduce, and the relevant error from the Max Console or CLI. Remove
@@ -39,6 +47,6 @@ bounded and parallel. Never rewrite users' ALS files or discard their Git work.
 
 Use `local-fixtures/` for private validation files; it is ignored. Use temporary
 repositories for integration checks, not a working music library. The CI workflow
-builds packages for Windows, Intel Macs and Apple Silicon Macs.
+currently builds and releases Windows x64 packages. The Mac matrix entries are commented out until native platform validation is available.
 
 Contributions are distributed under the repository's [MIT licence](LICENSE).

@@ -1,5 +1,7 @@
 # Max for Live UI
 
+**Current release: Windows x64 only.** [Download the latest Windows package](https://github.com/badlydressedboy/ableton-total-git/releases/latest/download/max-for-live-win-x64.zip). The macOS code and notes below are for contributors; those builds are paused. Help developing new features and validating other platforms is welcome—see [CONTRIBUTING.md](../CONTRIBUTING.md).
+
 The implemented source patch is `max-for-live/Ableton Total Git.maxpat`. It uses Node for Max as a thin loopback API client. It starts the Windows or macOS companion directly, using arguments rather than a shell; the companion owns Git, LFS, parsing and repository locks. No PowerShell is needed for routine device operations.
 
 ```text
@@ -11,11 +13,11 @@ Companion running. File preview is up to date.
 
 ## Package and install
 
-Prerequisites: Windows or macOS, Ableton Live with Max for Live / Node for Max, Git and Git LFS. Runtime-specific packages include .NET; only the default development package requires the .NET 10 **ASP.NET Core Runtime** (or SDK). Configure your Git author and authentication through your existing Git tools. Initialise repo can connect a GitHub remote and set tracking on the first Push.
+Windows release prerequisites: Windows x64, Ableton Live with Max for Live / Node for Max, Git and Git LFS. Runtime-specific packages include .NET; only the default development package requires the .NET 10 **ASP.NET Core Runtime** (or SDK). Configure your Git author and authentication through your existing Git tools. Initialise repo can connect a GitHub remote and set tracking on the first Push.
 
-Choose `artifacts/max-for-live-win-x64.zip` for Windows, `artifacts/max-for-live-osx-arm64.zip` for Apple Silicon, or `artifacts/max-for-live-osx-x64.zip` for Intel Macs. Extract the complete archive into a permanent writable folder. The development source package is `artifacts/max-for-live/`. To rebuild it from this repository after restoring the solution, run `node max-for-live/package.js` with Node installed. The device itself uses Max's bundled Node; it has no npm dependencies.
+Download `max-for-live-win-x64.zip` from the latest GitHub Release. Mac packages are not currently released. Extract the complete archive into a permanent writable folder. The development source package is `artifacts/max-for-live/`. To rebuild it from this repository after restoring the solution, run `node max-for-live/package.js` with Node installed. The device itself uses Max's bundled Node; it has no npm dependencies.
 
-Build a self-contained package with `node max-for-live/package.js --runtime win-x64`, `--runtime osx-arm64` or `--runtime osx-x64`. These builds download official .NET runtime packs from NuGet. ZIP packages preserve the macOS executable permission. Use `--output artifacts/my-package` to build separately from a running companion. CI builds and tests on Windows, Intel macOS and Apple Silicon macOS.
+Build a self-contained package with `node max-for-live/package.js --runtime win-x64`, `--runtime osx-arm64` or `--runtime osx-x64`. These builds download official .NET runtime packs from NuGet. ZIP packages preserve the macOS executable permission. Use `--output artifacts/my-package` to build separately from a running companion. CI currently builds and tests Windows only. The Mac matrix entries are commented out until native validation is available.
 
 On macOS, install Git and Git LFS using your existing Git installer or Homebrew (`brew install git git-lfs`). Live launched from Finder also searches `/opt/homebrew/bin` and `/usr/local/bin`. Settings are saved under `~/Library/Application Support/AbletonGit/max-for-live.json`; Windows retains `%LOCALAPPDATA%\AbletonGit\max-for-live.json`. macOS packages use the SDK's ad hoc signature and are not Developer ID signed or notarized; native Live/Max operation and macOS security prompts still need validation on a Mac. The Git status button can request permission to control Terminal; allow that request in macOS Automation settings if you want to use it.
 

@@ -16,11 +16,13 @@ node --test max-for-live/client.test.js max-for-live/platform.test.js max-for-li
 
 The .NET test suite is an executable, rather than a dotnet test project. It uses synthetic Sets and temporary Git/LFS repositories; no GitHub access or commercial fixtures are required.
 
-Build a self-contained device package for your target platform:
+Build the Windows release package:
 
 ```powershell
 node max-for-live/package.js --runtime win-x64
-# Alternatives: --runtime osx-arm64 or --runtime osx-x64
+# Experimental contributor builds only; not currently released or run in CI:
+# node max-for-live/package.js --runtime osx-arm64
+# node max-for-live/package.js --runtime osx-x64
 ```
 
 Output goes to the corresponding artifacts/max-for-live directory and ZIP. Runtime packaging downloads official .NET runtime packs. The default development package requires the .NET 10 ASP.NET Core Runtime or SDK.

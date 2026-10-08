@@ -11,7 +11,6 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>abletongit</ToolCommandName>
     <PackageId>AbletonGit.Cli</PackageId>
-    <Version>0.1.0</Version>
     <Description>Ableton Total Git: version control for Ableton Live project libraries, with semantic Set reports and Git LFS.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <OutputType>Exe</OutputType>
