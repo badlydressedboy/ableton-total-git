@@ -31,7 +31,7 @@ function watchLibrary(root, onChange, onError, ready = () => true, delay = 750) 
 
 // Fixed loopback transport. The device never passes commands to a shell or Git.
 class Client {
-    constructor(emit, transport, port = 17831) {
+    constructor(emit, transport, port = 17831, libraryOnly = false) {
         this.emit = emit;
         this.transport = transport || this.http.bind(this);
         this.port = port;
@@ -41,7 +41,8 @@ class Client {
         this.projects = [];
         this.project = null;
         this.all = false;
-        this.scope = "project";
+        this.libraryOnly = libraryOnly;
+        this.scope = libraryOnly ? "all" : "project";
         this.message = DEFAULT_DESCRIPTION;
         this.running = false;
         this.repositoryState = null;
@@ -108,7 +109,7 @@ class Client {
             let version;
             do {
                 version = this.selectionVersion;
-                const scope = this.scope, project = this.project;
+                const scope = this.libraryOnly ? "all" : this.scope, project = this.project;
                 const state = await this.transport("GET", "/api/ui-state");
                 if (this.token !== token) return;
                 this.repositoryState = state;
@@ -129,7 +130,7 @@ class Client {
         })().catch(error => {
             if (this.token === token) {
                 this.repositoryState = null; this.preview = null;
-                this.showPreview([], "Preview unavailable; use Refresh projects.");
+                this.showPreview([], "Preview unavailable; use Refresh library.");
             }
             throw error;
         }).finally(() => {
@@ -141,16 +142,16 @@ class Client {
     }
     async refreshAfterOperation() {
         try { await this.refreshState(); }
-        catch (error) { this.emit("detail", "State unavailable; use Refresh projects."); this.emit("console", error.message); }
+        catch (error) { this.emit("detail", "State unavailable; use Refresh library."); this.emit("console", error.message); }
     }
     invalidatePreview() {
         this.selectionVersion++; this.preview = null;
         this.showPreview([], this.token ? "Checking files..." : "Start the companion to preview files."); this.updateControls();
-        return this.refreshState().catch(error => { this.emit("detail", "Preview unavailable; use Refresh projects."); this.emit("console", error.message); });
+        return this.refreshState().catch(error => { this.emit("detail", "Preview unavailable; use Refresh library."); this.emit("console", error.message); });
     }
     requireTools() {
         if (!this.token) throw new Error("Start the companion first.");
-        if (!this.toolsReady) throw new Error("Git and Git LFS must pass the startup check. Use Refresh projects to check again.");
+        if (!this.toolsReady) throw new Error("Git and Git LFS must pass the startup check. Use Refresh library to check again.");
     }
     async checkTools() {
         this.toolsReady = false; this.updateControls();
@@ -197,8 +198,10 @@ class Client {
     async refresh() {
         this.previewSignature = null; // A manual Refresh also repaints a newly loaded/reconnected Max list.
         const result = await this.transport("GET", "/api/projects");
+        if (this.libraryOnly && !result.all) throw new Error("This device requires a whole-library companion.");
         this.all = result.all;
         this.projects = result.projects;
+        if (this.libraryOnly) { this.project = null; return; }
         if (!this.projects.some(p => p.path === this.project)) this.project = null;
         this.emit("projectclear");
         this.emit("projectitem", "Choose project...");
@@ -206,12 +209,12 @@ class Client {
         this.emit("projectselect", this.project === null ? 0 : this.projects.findIndex(p => p.path === this.project) + 1);
     }
     select(index) {
-        if (this.busy) return;
+        if (this.busy || this.libraryOnly) return;
         this.project = this.projects[index - 1]?.path || null;
         return this.invalidatePreview();
     }
     selectScope(index) {
-        if (this.busy) return;
+        if (this.busy || this.libraryOnly) return;
         this.scope = index === 1 ? "all" : "project";
         this.emit("scopeselect", this.scope === "all" ? 1 : 0);
         this.emit("warning", this.scope === "all" ? "All projects: includes saved changes throughout the library." : "Select the project you want to Snapshot. Save in Live first.");
@@ -223,11 +226,12 @@ class Client {
     async createSnapshot() {
             this.requireTools();
             if (!this.validDescription()) throw new Error("Enter a Commit Comment with at least 4 characters.");
-            if (this.scope === "all" && !this.all) throw new Error("All projects requires a library companion.");
-            if (this.scope === "project" && !this.project) throw new Error("Choose the project you want to Snapshot.");
+            const scope = this.libraryOnly ? "all" : this.scope;
+            if (scope === "all" && !this.all) throw new Error("All projects requires a library companion.");
+            if (scope === "project" && !this.project) throw new Error("Choose the project you want to Snapshot.");
             this.emit("status", "Creating Snapshot...");
-            const body = { message: this.message, push: false, scope: this.scope };
-            if (this.scope === "project") body.project = this.project;
+            const body = { message: this.message, push: false, scope };
+            if (scope === "project") body.project = this.project;
             const result = await this.transport("POST", "/api/snapshot", body);
             if (result.created) { this.message = DEFAULT_DESCRIPTION; this.emit("descriptionclear"); }
             this.emit("status", result.created ? "Snapshot saved: " + result.hash.slice(0, 12) : result.message);
@@ -264,7 +268,7 @@ class Client {
             if (!this.repositoryState?.canInitialize) throw new Error("The library is already initialised, or this folder is not the repository root.");
             this.emit("status", "Initialising library and Git LFS...");
             await this.transport("POST", "/api/init");
-            this.emit("status", "Library initialised. Choose a project and Snapshot.");
+            this.emit("status", "Library initialised. Review the files and Push.");
             await this.refreshAfterOperation();
         });
     }

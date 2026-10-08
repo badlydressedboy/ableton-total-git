@@ -88,7 +88,7 @@ Snapshot also accepts `scope: "project"` with a project identifier from `/api/pr
 
 The [M4L UI and installation guide](docs/max-for-live.md) provides a **Snapshot** button with **Current project / All projects** scope, an explicit project dropdown and separate **Push**. The device starts the companion and initialises the library without PowerShell. Project Snapshots in a shared repository preserve pending sibling changes and their committed semantic baselines. Processing remains parallel, with up to four workers; Git writes are serial.
 
-Build the development package with `node max-for-live/package.js`, or a self-contained Windows/macOS package with `node max-for-live/package.js --runtime win-x64` (also `osx-x64` or `osx-arm64`). Packages include `Ableton Git.amxd`; keep it beside the accompanying files and re-add it in Live after an update. The file list sits on the right and the presentation fits Live's device panel. Container structure, layout bounds and client integration are checked; native rendering still needs verification in Live. Current project uses your explicit dropdown selection, without automatic open-Set detection.
+Build the development package with `node max-for-live/package.js`, or a self-contained Windows/macOS package with `node max-for-live/package.js --runtime win-x64` (also `osx-x64` or `osx-arm64`). Packages include `Ableton Git.amxd`; keep it beside the accompanying files and re-add it in Live after an update. The file list sits on the right and the presentation fits Live's device panel. Container structure, layout bounds and client integration are checked; native rendering still needs verification in Live. The Max device always previews and commits the complete library, without project or scope selectors.
 
 ## Current scope
 
@@ -99,3 +99,5 @@ This is an initial reader of an undocumented format, verified with synthetic Liv
 Prepared Git files, conflicts, detached state and ongoing merge/rebase operations block Snapshots. Failures or cancellation after preparation can leave files staged for review in Git; the companion does not discard them. Do not run another Git writer during a Snapshot.
 
 Read [prior art](docs/prior-art.md), [ALS/schema notes](docs/als-format.md), [LFS](docs/git-lfs.md), [Snapshot workflow](docs/snapshot-workflow.md) and [testing](docs/testing.md).
+
+Repository initialization ignores Windows `desktop.ini` folder metadata at every depth, including mixed-case names. Existing ignore rules are preserved.

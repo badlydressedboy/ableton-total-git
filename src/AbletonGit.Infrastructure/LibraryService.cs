@@ -106,7 +106,7 @@ public sealed class LibraryService(IGitRepository git, ISetReader reader, Metada
         await git.InstallLfsAsync(root, ct); changes.Add("Verified/installed repository-local Git LFS.");
         var patterns = new[] { "*.wav", "*.aif", "*.aiff", "*.flac", "*.[wW][aA][vV]", "*.[aA][iI][fF]", "*.[aA][iI][fF][fF]", "*.[fF][lL][aA][cC]" };
         if (await CompanionService.AppendLines(root, ".gitattributes", patterns.Select(p => p + " filter=lfs diff=lfs merge=lfs -text").ToList(), ct)) changes.Add("Added library-wide LFS audio rules.");
-        if (await CompanionService.AppendLines(root, ".gitignore", ["*.asd", "Backup/", ".DS_Store", "Thumbs.db", ".abletongit/**/*.tmp", ".abletongit/operation.lock"], ct)) changes.Add("Added cache, backup and metadata temporary-file ignores.");
+        if (await CompanionService.AppendLines(root, ".gitignore", ["*.asd", "Backup/", ".DS_Store", "Thumbs.db", "[dD][eE][sS][kK][tT][oO][pP].[iI][nN][iI]", ".abletongit/**/*.tmp", ".abletongit/operation.lock"], ct)) changes.Add("Added cache, backup and metadata temporary-file ignores.");
         var analysis = await Write(root, model, ct);
         changes.AddRange(analysis.ChangedFiles.Select(p => "Generated/updated " + p));
         return new(analysis, changes);

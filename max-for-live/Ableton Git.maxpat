@@ -51,7 +51,9 @@
             26,
             75,
             20
-          ]
+          ],
+          "annotation_name": "Library folder",
+          "annotation": "Full path to the parent Ableton projects library tracked in one Git repository. This folder is remembered and starts automatically next time. Press Enter or Tab to apply a folder edit and start automatically. Changing to another valid folder automatically restarts the running companion and rescans. Folder changes wait for an active operation to finish. Editing is locked while an operation runs."
         }
       },
       {
@@ -77,7 +79,9 @@
             22,
             440,
             25
-          ]
+          ],
+          "annotation_name": "Library folder",
+          "annotation": "Full path to the parent Ableton projects library tracked in one Git repository. This folder is remembered and starts automatically next time. Press Enter or Tab to apply a folder edit and start automatically. Changing to another valid folder automatically restarts the running companion and rescans. Folder changes wait for an active operation to finish. Editing is locked while an operation runs."
         }
       },
       {
@@ -86,7 +90,7 @@
           "maxclass": "textedit",
           "patching_rect": [
             125,
-            110,
+            80,
             230,
             25
           ],
@@ -99,10 +103,12 @@
           "presentation": 1,
           "presentation_rect": [
             125,
-            110,
+            80,
             230,
             25
-          ]
+          ],
+          "annotation_name": "Commit Comment",
+          "annotation": "Comment recorded with the next commit. Enter at least four characters after trimming surrounding spaces to commit changed files. The editable default is Raw Creativity and returns after a successful commit. Editing is locked while an operation runs. Uploading existing commits does not require a new comment."
         }
       },
       {
@@ -111,7 +117,7 @@
           "maxclass": "comment",
           "patching_rect": [
             8,
-            114,
+            84,
             110,
             20
           ],
@@ -119,102 +125,12 @@
           "presentation": 1,
           "presentation_rect": [
             8,
-            114,
+            84,
             110,
             20
-          ]
-        }
-      },
-      {
-        "box": {
-          "id": "projectlabel",
-          "maxclass": "comment",
-          "patching_rect": [
-            8,
-            84,
-            75,
-            20
           ],
-          "text": "Project",
-          "presentation": 1,
-          "presentation_rect": [
-            8,
-            84,
-            75,
-            20
-          ]
-        }
-      },
-      {
-        "box": {
-          "id": "project",
-          "maxclass": "umenu",
-          "patching_rect": [
-            85,
-            80,
-            275,
-            25
-          ],
-          "items": [
-            "Choose project..."
-          ],
-          "parameter_enable": 0,
-          "numinlets": 1,
-          "numoutlets": 3,
-          "presentation": 1,
-          "presentation_rect": [
-            85,
-            80,
-            275,
-            25
-          ]
-        }
-      },
-      {
-        "box": {
-          "id": "scope",
-          "maxclass": "umenu",
-          "patching_rect": [
-            370,
-            80,
-            155,
-            25
-          ],
-          "items": [
-            "Current project",
-            ",",
-            "All projects"
-          ],
-          "parameter_enable": 0,
-          "numinlets": 1,
-          "numoutlets": 3,
-          "presentation": 1,
-          "presentation_rect": [
-            370,
-            80,
-            155,
-            25
-          ]
-        }
-      },
-      {
-        "box": {
-          "id": "warning",
-          "maxclass": "comment",
-          "patching_rect": [
-            8,
-            0,
-            300,
-            20
-          ],
-          "text": "Select a project. Save in Live before Snapshot.",
-          "presentation": 1,
-          "presentation_rect": [
-            8,
-            0,
-            300,
-            20
-          ]
+          "annotation_name": "Commit Comment",
+          "annotation": "Comment recorded with the next commit. Enter at least four characters after trimming surrounding spaces to commit changed files. The editable default is Raw Creativity and returns after a successful commit. Editing is locked while an operation runs. Uploading existing commits does not require a new comment."
         }
       },
       {
@@ -222,19 +138,21 @@
           "id": "details",
           "maxclass": "comment",
           "patching_rect": [
-            315,
-            0,
-            210,
+            8,
+            140,
+            537,
             20
           ],
           "text": "",
           "presentation": 1,
           "presentation_rect": [
-            315,
-            0,
-            210,
+            8,
+            140,
+            537,
             20
-          ]
+          ],
+          "annotation_name": "Analysis warnings",
+          "annotation": "Warnings from analysing saved Sets and media references. Complete warnings are printed in the Max Console. Resolve external or missing media in Live with Collect All and Save when appropriate."
         }
       },
       {
@@ -243,18 +161,20 @@
           "maxclass": "comment",
           "patching_rect": [
             8,
-            140,
+            110,
             537,
             20
           ],
-          "text": "Enter library folder, then Start companion.",
+          "text": "Loading companion script...",
           "presentation": 1,
           "presentation_rect": [
             8,
-            140,
+            110,
             537,
             20
-          ]
+          ],
+          "annotation_name": "Companion status",
+          "annotation": "Latest startup, operation result or error. Long messages are shortened here and printed in full in the Max Console. Hover over a disabled button for the conditions needed to enable it."
         }
       },
       {
@@ -274,7 +194,9 @@
             0,
             365,
             20
-          ]
+          ],
+          "annotation_name": "File count",
+          "annotation": "Number of eligible files that the next commit will include across the whole library. Start and initialise the companion library to see the preview. Zero files can still allow Push when existing commits are ready to upload."
         }
       },
       {
@@ -325,7 +247,9 @@
             22,
             365,
             140
-          ]
+          ],
+          "annotation_name": "Files to commit",
+          "annotation": "Read-only preview of eligible changed files across the whole library, including generated .abletongit reports. The left column shows Git change status. Scroll vertically for more files and horizontally for long names. Preview does not commit files. Save in Live before reviewing or pushing."
         }
       },
       {
@@ -338,7 +262,46 @@
             250,
             22
           ],
-          "text": "node.script device.js @autostart 1 @defer 1"
+          "text": "node.script device.js @autostart 0 @defer 1"
+        }
+      },
+      {
+        "box": {
+          "id": "deviceready",
+          "maxclass": "newobj",
+          "patching_rect": [
+            8,
+            450,
+            250,
+            22
+          ],
+          "text": "live.thisdevice"
+        }
+      },
+      {
+        "box": {
+          "id": "startonce",
+          "maxclass": "newobj",
+          "patching_rect": [
+            280,
+            450,
+            250,
+            22
+          ],
+          "text": "onebang 1"
+        }
+      },
+      {
+        "box": {
+          "id": "startdefer",
+          "maxclass": "newobj",
+          "patching_rect": [
+            550,
+            450,
+            250,
+            22
+          ],
+          "text": "deferlow"
         }
       },
       {
@@ -386,19 +349,6 @@
           "maxclass": "newobj",
           "patching_rect": [
             8,
-            585,
-            250,
-            22
-          ],
-          "text": "prepend set"
-        }
-      },
-      {
-        "box": {
-          "id": "set1",
-          "maxclass": "newobj",
-          "patching_rect": [
-            108,
             585,
             250,
             22
@@ -478,19 +428,6 @@
           "patching_rect": [
             800,
             940,
-            250,
-            22
-          ],
-          "text": "prepend active"
-        }
-      },
-      {
-        "box": {
-          "id": "stopactive",
-          "maxclass": "newobj",
-          "patching_rect": [
-            800,
-            970,
             250,
             22
           ],
@@ -603,19 +540,6 @@
       },
       {
         "box": {
-          "id": "scoperestore",
-          "maxclass": "newobj",
-          "patching_rect": [
-            1250,
-            585,
-            250,
-            22
-          ],
-          "text": "prepend set"
-        }
-      },
-      {
-        "box": {
           "id": "ignore",
           "maxclass": "newobj",
           "patching_rect": [
@@ -625,45 +549,6 @@
             22
           ],
           "text": "prepend sendbox ignoreclick"
-        }
-      },
-      {
-        "box": {
-          "id": "clear",
-          "maxclass": "message",
-          "patching_rect": [
-            320,
-            585,
-            60,
-            22
-          ],
-          "text": "clear"
-        }
-      },
-      {
-        "box": {
-          "id": "append",
-          "maxclass": "newobj",
-          "patching_rect": [
-            390,
-            585,
-            250,
-            22
-          ],
-          "text": "prepend append"
-        }
-      },
-      {
-        "box": {
-          "id": "select",
-          "maxclass": "newobj",
-          "patching_rect": [
-            560,
-            585,
-            250,
-            22
-          ],
-          "text": "prepend set"
         }
       },
       {
@@ -720,32 +605,6 @@
       },
       {
         "box": {
-          "id": "projectprefix",
-          "maxclass": "newobj",
-          "patching_rect": [
-            520,
-            720,
-            250,
-            22
-          ],
-          "text": "prepend project"
-        }
-      },
-      {
-        "box": {
-          "id": "scopeprefix",
-          "maxclass": "newobj",
-          "patching_rect": [
-            520,
-            770,
-            250,
-            22
-          ],
-          "text": "prepend scope"
-        }
-      },
-      {
-        "box": {
           "id": "start",
           "maxclass": "textbutton",
           "patching_rect": [
@@ -771,7 +630,9 @@
             50,
             130,
             25
-          ]
+          ],
+          "annotation_name": "Start companion",
+          "annotation": "Retry starting the background companion for the library folder and check Git and Git LFS. Valid folder input and saved folders start automatically; unexpected exits are restarted. Disabled while this device already owns a running companion or an operation is active. A valid folder and the companion files are required."
         }
       },
       {
@@ -780,7 +641,7 @@
           "maxclass": "message",
           "patching_rect": [
             85,
-            536,
+            482,
             100,
             22
           ],
@@ -827,7 +688,9 @@
             50,
             130,
             25
-          ]
+          ],
+          "annotation_name": "Initialise library",
+          "annotation": "Create the library Git repository, configure Git LFS and generate project reports. Disabled if the companion is not connected, Git or Git LFS checks fail, an operation is active, repository state is unavailable, or this folder is already initialised or is not the repository root."
         }
       },
       {
@@ -836,7 +699,7 @@
           "maxclass": "message",
           "patching_rect": [
             225,
-            554,
+            500,
             100,
             22
           ],
@@ -858,68 +721,12 @@
       },
       {
         "box": {
-          "id": "stop",
-          "maxclass": "textbutton",
-          "patching_rect": [
-            365,
-            50,
-            60,
-            25
-          ],
-          "active": 0,
-          "mode": 0,
-          "parameter_enable": 0,
-          "numinlets": 1,
-          "numoutlets": 3,
-          "outlettype": [
-            "",
-            "",
-            "int"
-          ],
-          "text": "Stop",
-          "presentation": 1,
-          "presentation_rect": [
-            365,
-            50,
-            60,
-            25
-          ]
-        }
-      },
-      {
-        "box": {
-          "id": "stopcmd",
-          "maxclass": "message",
-          "patching_rect": [
-            365,
-            572,
-            100,
-            22
-          ],
-          "text": "stop"
-        }
-      },
-      {
-        "box": {
-          "id": "stoptrigger",
-          "maxclass": "newobj",
-          "patching_rect": [
-            365,
-            230,
-            250,
-            22
-          ],
-          "text": "t b"
-        }
-      },
-      {
-        "box": {
           "id": "refresh",
           "maxclass": "textbutton",
           "patching_rect": [
-            435,
+            365,
             50,
-            90,
+            160,
             25
           ],
           "active": 0,
@@ -932,14 +739,16 @@
             "",
             "int"
           ],
-          "text": "Refresh projects",
+          "text": "Refresh library",
           "presentation": 1,
           "presentation_rect": [
-            435,
+            365,
             50,
-            90,
+            160,
             25
-          ]
+          ],
+          "annotation_name": "Refresh library",
+          "annotation": "Check Git and Git LFS again and refresh the file preview across the whole library. Saved file changes are also scanned automatically. Disabled before the companion connects or while an operation is active."
         }
       },
       {
@@ -947,8 +756,8 @@
           "id": "refreshcmd",
           "maxclass": "message",
           "patching_rect": [
-            435,
-            590,
+            365,
+            518,
             100,
             22
           ],
@@ -960,7 +769,7 @@
           "id": "refreshtrigger",
           "maxclass": "newobj",
           "patching_rect": [
-            435,
+            365,
             230,
             250,
             22
@@ -974,7 +783,7 @@
           "maxclass": "textbutton",
           "patching_rect": [
             365,
-            110,
+            80,
             75,
             25
           ],
@@ -992,10 +801,12 @@
           "presentation": 1,
           "presentation_rect": [
             365,
-            110,
+            80,
             75,
             25
-          ]
+          ],
+          "annotation_name": "Push",
+          "annotation": "Save in Live first. Commit all eligible changed files across the library using Commit Comment, then upload committed history if a tracking remote is configured. Without a remote, the commit stays local. Failed uploads keep the commit for retry. Disabled if the companion is not ready, Git or Git LFS checks fail, an operation runs, state is unavailable, the library needs initialising, changed files lack a four-character comment, or there are neither changes to commit nor commits ready to upload."
         }
       },
       {
@@ -1004,7 +815,7 @@
           "maxclass": "message",
           "patching_rect": [
             365,
-            608,
+            536,
             100,
             22
           ],
@@ -1043,7 +854,7 @@
           "maxclass": "textbutton",
           "patching_rect": [
             450,
-            110,
+            80,
             75,
             25
           ],
@@ -1061,10 +872,12 @@
           "presentation": 1,
           "presentation_rect": [
             450,
-            110,
+            80,
             75,
             25
-          ]
+          ],
+          "annotation_name": "Git status",
+          "annotation": "Open PowerShell on Windows or Terminal on macOS in the library folder and run git status. The window stays open. Requires a valid folder; the companion can be stopped. Disabled while an operation is active."
         }
       },
       {
@@ -1073,7 +886,7 @@
           "maxclass": "message",
           "patching_rect": [
             450,
-            632,
+            560,
             100,
             22
           ],
@@ -1134,19 +947,6 @@
       },
       {
         "box": {
-          "id": "defaultscope",
-          "maxclass": "message",
-          "patching_rect": [
-            300,
-            900,
-            70,
-            22
-          ],
-          "text": "set 1"
-        }
-      },
-      {
-        "box": {
           "id": "filecolumns",
           "maxclass": "message",
           "patching_rect": [
@@ -1160,6 +960,42 @@
       }
     ],
     "lines": [
+      {
+        "patchline": {
+          "source": [
+            "deviceready",
+            0
+          ],
+          "destination": [
+            "startonce",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "startonce",
+            0
+          ],
+          "destination": [
+            "startdefer",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "startdefer",
+            0
+          ],
+          "destination": [
+            "scriptstart",
+            0
+          ]
+        }
+      },
       {
         "patchline": {
           "source": [
@@ -1216,30 +1052,6 @@
           ],
           "destination": [
             "status",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "route",
-            1
-          ],
-          "destination": [
-            "set1",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "set1",
-            0
-          ],
-          "destination": [
-            "warning",
             0
           ]
         }
@@ -1336,18 +1148,6 @@
           ],
           "destination": [
             "startactive",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "route",
-            9
-          ],
-          "destination": [
-            "stopactive",
             0
           ]
         }
@@ -1500,30 +1300,6 @@
         "patchline": {
           "source": [
             "route",
-            18
-          ],
-          "destination": [
-            "scoperestore",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "scoperestore",
-            0
-          ],
-          "destination": [
-            "scope",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "route",
             2
           ],
           "destination": [
@@ -1559,102 +1335,6 @@
       {
         "patchline": {
           "source": [
-            "ignore",
-            0
-          ],
-          "destination": [
-            "project",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "ignore",
-            0
-          ],
-          "destination": [
-            "scope",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "route",
-            3
-          ],
-          "destination": [
-            "clear",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "clear",
-            0
-          ],
-          "destination": [
-            "project",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "route",
-            4
-          ],
-          "destination": [
-            "append",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "append",
-            0
-          ],
-          "destination": [
-            "project",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "route",
-            5
-          ],
-          "destination": [
-            "select",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "select",
-            0
-          ],
-          "destination": [
-            "project",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
             "library",
             0
           ],
@@ -1716,54 +1396,6 @@
         "patchline": {
           "source": [
             "descriptionprefix",
-            0
-          ],
-          "destination": [
-            "node",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "project",
-            0
-          ],
-          "destination": [
-            "projectprefix",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "projectprefix",
-            0
-          ],
-          "destination": [
-            "node",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "scope",
-            0
-          ],
-          "destination": [
-            "scopeprefix",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "scopeprefix",
             0
           ],
           "destination": [
@@ -1888,54 +1520,6 @@
           ],
           "destination": [
             "init",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "stop",
-            1
-          ],
-          "destination": [
-            "stoptrigger",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "stoptrigger",
-            0
-          ],
-          "destination": [
-            "stopcmd",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "stopcmd",
-            0
-          ],
-          "destination": [
-            "node",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "stopactive",
-            0
-          ],
-          "destination": [
-            "stop",
             0
           ]
         }
@@ -2165,30 +1749,6 @@
           "destination": [
             "audioout",
             1
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "defaults",
-            0
-          ],
-          "destination": [
-            "defaultscope",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "defaultscope",
-            0
-          ],
-          "destination": [
-            "scope",
-            0
           ]
         }
       },

@@ -68,7 +68,7 @@ public sealed class CompanionService(IGitRepository git, ISetReader reader, Meta
         var patterns = new[] { "*.wav", "*.aif", "*.aiff", "*.flac", "*.[wW][aA][vV]", "*.[aA][iI][fF]", "*.[aA][iI][fF][fF]", "*.[fF][lL][aA][cC]" };
         if (await AppendLines(location.Root, ".gitattributes", patterns.Select(p => p + " filter=lfs diff=lfs merge=lfs -text").ToList(), ct))
             changes.Add("Added missing audio LFS rules to .gitattributes (including uppercase extensions).");
-        if (await AppendLines(location.Root, ".gitignore", ["*.asd", "Backup/", ".DS_Store", "Thumbs.db", ".abletongit/*.tmp", ".abletongit/operation.lock"], ct))
+        if (await AppendLines(location.Root, ".gitignore", ["*.asd", "Backup/", ".DS_Store", "Thumbs.db", "[dD][eE][sS][kK][tT][oO][pP].[iI][nN][iI]", ".abletongit/*.tmp", ".abletongit/operation.lock"], ct))
             changes.Add("Added missing cache, Backup and temporary-file rules to .gitignore.");
         var changed = await metadata.WriteAsync(location.Root, model, ct);
         changes.AddRange(changed.Select(p => "Generated " + p));

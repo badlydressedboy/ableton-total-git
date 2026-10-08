@@ -280,6 +280,29 @@ Test("Git init, LFS config, preservation, snapshot, history, no changes, status"
     Check((await s.DiffAsync(p.Root, default)).Changes.Count == 0, "baseline diff");
     var checks = await s.DoctorAsync(p.Root, default); Check(checks.All(c => c.Level != "FAIL"), "doctor");
 });
+Test("project and library Init ignore desktop.ini at every depth and preserve existing rules", async () =>
+{
+    foreach (var all in new[] { false, true })
+    {
+        using var p = new Fixture();
+        await File.WriteAllTextAsync(Path.Combine(p.Root, ".gitignore"), "custom-cache/\n");
+        if (all) await new LibraryService(git, reader, new()).InitAsync(p.Root, default);
+        else await Service().InitAsync(p.Root, default);
+        var paths = new[] { "desktop.ini", "Nested/Desktop.ini", "Nested/More/DESKTOP.INI" };
+        foreach (var relative in paths)
+        {
+            var file = Path.Combine(p.Root, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+            await File.WriteAllTextAsync(file, "Windows folder settings");
+        }
+        var result = await runner.RunAsync("git", ["check-ignore", "--", .. paths], p.Root);
+        Check(result.ExitCode == 0 && result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length == paths.Length, "all desktop.ini casing/depth combinations ignored");
+        Check((await File.ReadAllTextAsync(Path.Combine(p.Root, ".gitignore"))).StartsWith("custom-cache/"), "existing rules preserved");
+        if (all) await new LibraryService(git, reader, new()).InitAsync(p.Root, default);
+        else await Service().InitAsync(p.Root, default);
+        Check((await File.ReadAllLinesAsync(Path.Combine(p.Root, ".gitignore"))).Count(line => line == "[dD][eE][sS][kK][tT][oO][pP].[iI][nN][iI]") == 1, "repeated Init does not duplicate the ignore rule");
+    }
+});
 Test("semantic history baseline survives repeated analysis; changed/deleted audio", async () =>
 {
     using var p = new Fixture(); var s = Service(); await s.InitAsync(p.Root, default); await p.Identity(runner);

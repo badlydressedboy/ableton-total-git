@@ -126,20 +126,23 @@ test("real loopback transport uses token and reports structured server errors", 
         assert(events.some(e => e[0] === "status" && e[1] === "Run Init first."));
     } finally { await new Promise(resolve => server.close(resolve)); }
 });
-test("patch wires every action to Node, passes audio through and defaults All projects scope", () => {
+test("patch wires every action to Node, passes audio through and has no project selectors", () => {
     const patch = JSON.parse(fs.readFileSync(path.join(__dirname, "Ableton Git.maxpat"))).patcher;
     const ids = new Set(patch.boxes.map(b => b.box.id));
     for (const { patchline: line } of patch.lines) assert(ids.has(line.source[0]) && ids.has(line.destination[0]));
-    for (const id of ["start", "stop", "init", "refresh", "push"])
+    for (const id of ["start", "init", "refresh", "push"])
         assert(patch.lines.some(l => l.patchline.source[0] === id + "cmd" && l.patchline.destination[0] === "node"));
     assert.equal(patch.lines.filter(l => l.patchline.source[0] === "audioin" && l.patchline.destination[0] === "audioout").length, 2);
-    assert.equal(patch.boxes.find(b => b.box.id === "scope").box.items[0], "Current project");
-    assert.equal(patch.boxes.find(b => b.box.id === "defaultscope").box.text, "set 1");
+    assert(!patch.boxes.some(({ box }) => ["project", "scope", "defaultscope"].includes(box.id)), "whole-library UI has no project selectors");
     assert(patch.lines.some(l => l.patchline.source[0] === "set6" && l.patchline.destination[0] === "details"));
     assert(!patch.lines.some(l => l.patchline.source[0] === "set6" && ["status", "warning"].includes(l.patchline.destination[0])));
     assert.equal(patch.boxes.find(b => b.box.id === "library").box.outputmode, 1, "path transported as one literal symbol");
     assert(patch.lines.some(l => l.patchline.source[0] === "node" && l.patchline.source[1] === 1 && l.patchline.destination[0] === "runtimeconsole"));
     assert(patch.lines.some(l => l.patchline.source[0] === "scriptstart" && l.patchline.destination[0] === "node"));
+    assert.equal(patch.boxes.find(b => b.box.id === "deviceready").box.text, "live.thisdevice");
+    assert.equal(patch.boxes.find(b => b.box.id === "node").box.text, "node.script device.js @autostart 0 @defer 1");
+    for (const [from, to] of [["deviceready", "startonce"], ["startonce", "startdefer"], ["startdefer", "scriptstart"]])
+        assert(patch.lines.some(l => l.patchline.source[0] === from && l.patchline.destination[0] === to), from + " reaches " + to);
     assert(!patch.boxes.some(b => b.box.id === "snapshot"), "one combined Push button");
     for (const id of ["push", "init"]) {
         assert.equal(patch.boxes.find(b => b.box.id === id).box.active, 0);
@@ -156,7 +159,7 @@ test("patch wires every action to Node, passes audio through and defaults All pr
         assert(box.presentation_rect[1] + box.presentation_rect[3] <= 169, box.id + " fits Live device height");
     }
     assert(patch.lines.some(l => l.patchline.source[0] === "descriptionclear" && l.patchline.destination[0] === "description"));
-    assert.equal(patch.boxes.find(b => b.box.id === "stop").box.active, 0);
+    assert(!patch.boxes.some(({ box }) => box.id === "stop"), "companion lifecycle is automatic");
 });
 test("startup preflight gates writes, reports failures and supports recovery", async () => {
     const requests = [], events = []; let available = false;
@@ -356,9 +359,9 @@ test("device startup with no Git on PATH reports repair guidance and keeps write
     const load = new Function("require", "__dirname", "module", "exports", fs.readFileSync(filename, "utf8"));
     load(name => name === "max-api" ? mock : name === "child_process" ? {
         spawn: (executable, args, options) => processes.spawn(executable, [...args, "--port", String(testPort)], { ...options, env: { ...process.env, PATH: "" } })
-    } : name === "./client" ? { ...packaged, Client: class extends packaged.Client { constructor(emit, transport) { super(emit, transport, testPort); } } } : name === "./preferences" ? testPreferences(root) : localRequire(name), packagePath, { exports: {} }, {});
+    } : name === "./client" ? { ...packaged, Client: class extends packaged.Client { constructor(emit, transport, _port, libraryOnly) { super(emit, transport, testPort, libraryOnly); } } } : name === "./preferences" ? testPreferences(root) : localRequire(name), packagePath, { exports: {} }, {});
     try {
-        handlers.get("library")(root);
+        assert.equal(await handlers.get("library")(root), false, "folder entry automatically checks the missing tools");
         assert.equal(await handlers.get("start")(), false);
         assert(!events.some(e => e[0] === "status" && e[1].startsWith("Ready.")));
         assert(events.some(e => e[0] === "console" && e[1].includes("Install Git") && e[1].includes("PATH")), JSON.stringify(events));
@@ -381,9 +384,9 @@ test("Git status opens a visible persistent PowerShell with the library as a lit
     const mock = { addHandler: (name, handler) => handlers.set(name, handler), outlet: () => {}, post: () => {} };
     load(name => name === "max-api" ? mock : name === "child_process" ? {
         spawn: (...args) => { launches.push(args); return { once(event, handler) { if (event === "exit") queueMicrotask(() => handler(0)); } }; }
-    } : name === "./preferences" ? testPreferences(root) : localRequire(name), packagePath, { exports: {} }, {});
+    } : name === "./preferences" ? testPreferences(root) : name === "./platform" ? { ...localRequire(name), companionExecutable: () => path.join(root, "missing-api") } : localRequire(name), packagePath, { exports: {} }, {});
     try {
-        handlers.get("library")(library);
+        await handlers.get("library")(library);
         assert.equal(await handlers.get("gitstatus")(), true);
         const [executable, args, options] = launches[0];
         if (process.platform === "win32") {
@@ -401,9 +404,12 @@ test("Git status opens a visible persistent PowerShell with the library as a lit
     } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 test("published device launches companion, initialises and Snapshots a real library without a shell", {
-    skip: !fs.existsSync(path.join(packagePath, "companion/AbletonGit.Api.exe"))
+    skip: !fs.existsSync(path.join(packagePath, "companion/AbletonGit.Api" + (process.platform === "win32" ? ".exe" : "")))
 }, async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "AbletonGit-device-"));
+    const nextRoot = fs.mkdtempSync(path.join(os.tmpdir(), "AbletonGit-restart-"));
+    let activeClient;
+    const ownedChildren = [];
     const testPort = await unusedPort();
     const project = path.join(root, "Dub Project 音");
     fs.mkdirSync(path.join(project, "Ableton Project Info"), { recursive: true });
@@ -414,16 +420,16 @@ test("published device launches companion, initialises and Snapshots a real libr
     const processes = require("node:child_process"), packaged = localRequire("./client");
     const load = new Function("require", "__dirname", "module", "exports", fs.readFileSync(filename, "utf8"));
     load(name => name === "max-api" ? mock : name === "child_process" ? {
-        spawn: (executable, args, options) => processes.spawn(executable, [...args, "--port", String(testPort)], options)
-    } : name === "./client" ? { ...packaged, Client: class extends packaged.Client { constructor(emit, transport) { super(emit, transport, testPort); } } } : name === "./preferences" ? testPreferences(root) : localRequire(name), packagePath, { exports: {} }, {});
+        spawn: (executable, args, options) => { const owned = processes.spawn(executable, [...args, "--port", String(testPort)], options); ownedChildren.push(owned); return owned; }
+    } : name === "./client" ? { ...packaged, Client: class extends packaged.Client { constructor(emit, transport, _port, libraryOnly) { super(emit, transport, testPort, libraryOnly); activeClient = this; } } } : name === "./preferences" ? testPreferences(root) : localRequire(name), packagePath, { exports: {} }, {});
     try {
-        handlers.get("library")('"' + root + '"'); await handlers.get("start")();
+        assert.equal(await handlers.get("library")('"' + root + '"'), true, "first folder submission auto-starts without clicking Start");
         assert(events.some(e => e[0] === "status" && e[1].startsWith("Companion running.")), JSON.stringify(events));
         await handlers.get("init")();
         for (const [key, value] of [["user.name", "Device Test"], ["user.email", "device@example.invalid"], ["commit.gpgsign", "false"]]) {
             const result = spawnSync("git", ["-C", root, "config", key, value], { shell: false }); assert.equal(result.status, 0);
         }
-        handlers.get("project")(1); handlers.get("description")("Saved through device");
+        assert(!handlers.has("project") && !handlers.has("scope")); handlers.get("description")("Saved through device");
         await handlers.get("snapshot")();
         assert(events.some(e => e[0] === "status" && e[1].startsWith("Snapshot saved:")), JSON.stringify(events));
         const log = spawnSync("git", ["-C", root, "log", "-1", "--format=%s"], { encoding: "utf8", shell: false });
@@ -434,16 +440,115 @@ test("published device launches companion, initialises and Snapshots a real libr
         events.length = 0;
         const reloaded = { exports: {} };
         load(name => name === "max-api" ? mock : name === "child_process" ? {
-            spawn: (executable, args, options) => processes.spawn(executable, [...args, "--port", String(testPort)], options)
-        } : name === "./client" ? { ...packaged, Client: class extends packaged.Client { constructor(emit, transport) { super(emit, transport, testPort); } } } : name === "./preferences" ? testPreferences(root) : localRequire(name), packagePath, reloaded, {});
+            spawn: (executable, args, options) => { const owned = processes.spawn(executable, [...args, "--port", String(testPort)], options); ownedChildren.push(owned); return owned; }
+        } : name === "./client" ? { ...packaged, Client: class extends packaged.Client { constructor(emit, transport, _port, libraryOnly) { super(emit, transport, testPort, libraryOnly); activeClient = this; } } } : name === "./preferences" ? testPreferences(root) : localRequire(name), packagePath, reloaded, {});
         assert.deepEqual(lastEvent(events, "libraryrestore"), ["libraryrestore", normalizeLibraryPath(root)]);
         assert.equal(await reloaded.exports.startup, true, "reloaded device auto-starts with remembered path without clicking Start");
         assert.deepEqual(lastEvent(events, "stopenabled"), ["stopenabled", 1]);
-        assert.deepEqual(lastEvent(events, "scopeselect"), ["scopeselect", 1]);
+        assert.equal(lastEvent(events, "scopeselect"), undefined, "no scope control to restore");
         assert.deepEqual(lastEvent(events, "filesummary"), ["filesummary", "0 files will be committed."], "startup finishes the All projects scan without a Refresh click");
+
+        const oldToken = activeClient.token;
+        assert.equal(await handlers.get("library")(path.join(root, "missing")), false, "invalid folder keeps the old companion running");
+        assert.equal(activeClient.token, oldToken);
+        let finish;
+        const operation = activeClient.run(() => new Promise(resolve => { finish = resolve; }));
+        assert.equal(await handlers.get("library")(nextRoot), false, "folder change queued behind operation");
+        assert.equal(new Preferences(path.join(root, "device-preferences.json")).loadLibrary(), normalizeLibraryPath(root));
+        assert.equal(activeClient.token, oldToken, "no restart during the operation");
+        finish(); await operation;
+        const deadline = Date.now() + 10000;
+        while ((activeClient.busy || activeClient.token === oldToken || !activeClient.toolsReady) && Date.now() < deadline)
+            await new Promise(resolve => setTimeout(resolve, 25));
+        assert(activeClient.toolsReady && !activeClient.busy && activeClient.token !== oldToken, "restart completes with a fresh API token");
+        assert.equal(new Preferences(path.join(root, "device-preferences.json")).loadLibrary(), normalizeLibraryPath(nextRoot));
+        assert.deepEqual(lastEvent(events, "filesummary"), ["filesummary", "Initialise the library to preview files."]);
+
+        const beforeRecovery = activeClient.token;
+        const closed = new Promise(resolve => ownedChildren.at(-1).once("exit", resolve));
+        ownedChildren.at(-1).kill(); await closed;
+        const recoveryDeadline = Date.now() + 15000;
+        while ((!activeClient.toolsReady || activeClient.busy || activeClient.token === beforeRecovery) && Date.now() < recoveryDeadline)
+            await new Promise(resolve => setTimeout(resolve, 25));
+        assert(activeClient.toolsReady && !activeClient.busy && activeClient.token && activeClient.token !== beforeRecovery, "unexpected companion exit recovers automatically without clicking Start");
     } finally {
         await handlers.get("stop")();
         await new Promise(resolve => setTimeout(resolve, 200));
+        fs.rmSync(root, { recursive: true, force: true });
+        fs.rmSync(nextRoot, { recursive: true, force: true });
+    }
+});
+
+test("library-only client previews and commits the whole library despite stale project selection", async () => {
+    const requests = [], events = [];
+    const files = [{ state: " M", path: "First/Set.als" }, { state: " M", path: "Second/Set.als" }];
+    const client = new Client((...event) => events.push(event), async (method, endpoint, body) => {
+        requests.push([method, endpoint, body]);
+        if (endpoint === "/api/projects") return { all: true, projects: [{ path: "First", name: "First" }] };
+        if (endpoint === "/api/ui-state") return { initialized: true, canInitialize: false, canPush: false };
+        if (endpoint === "/api/preview?scope=all") return { count: files.length, files };
+        if (endpoint === "/api/snapshot") return { created: true, hash: "abcdef0123456789", warnings: [] };
+        throw new Error("Unexpected request: " + endpoint);
+    }, 17831, true);
+    client.token = "token"; client.toolsReady = true;
+    await client.refresh(); client.select(1); client.selectScope(0);
+    assert.equal(client.scope, "all"); assert.equal(client.project, null);
+    assert(!events.some(e => ["projectitem", "projectselect", "scopeselect"].includes(e[0])));
+    client.scope = "project"; client.project = "First"; // A stale restored state must never narrow the device's operations.
+    await client.refreshState(); assert.equal(client.preview.count, 2);
+    assert.equal(await client.push(), true);
+    assert.deepEqual(requests.find(r => r[1] === "/api/snapshot")[2], { message: "Raw Creativity", push: false, scope: "all" });
+    assert(requests.filter(r => r[1].startsWith("/api/preview")).every(r => r[1] === "/api/preview?scope=all"));
+    client.transport = async () => ({ all: false, projects: [] });
+    await assert.rejects(client.refresh(), /whole-library companion/);
+});
+
+test("closing the device Node process also closes its owned companion", {
+    skip: !fs.existsSync(path.join(packagePath, "companion/AbletonGit.Api" + (process.platform === "win32" ? ".exe" : "")))
+}, async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "AbletonGit-close-"));
+    const port = await unusedPort();
+    const filename = path.join(root, "device-preferences.json");
+    fs.writeFileSync(filename, JSON.stringify({ library: root }));
+    const source = String.raw`
+        const fs = require("fs"), path = require("path"), { createRequire } = require("module");
+        const [directory, preferences, port] = process.argv.slice(1);
+        const filename = path.join(directory, "device.js"), local = createRequire(filename);
+        const packaged = local("./client"), saved = local("./preferences"), processes = require("child_process");
+        let childPid;
+        const load = new Function("require", "__dirname", "module", "exports", fs.readFileSync(filename, "utf8"));
+        const device = { exports: {} };
+        load(name => name === "max-api" ? { addHandler() {}, outlet() {}, post() {} } :
+            name === "./preferences" ? { Preferences: class extends saved.Preferences { constructor() { super(preferences); } } } :
+            name === "./client" ? { ...packaged, Client: class extends packaged.Client { constructor(emit, transport, _port, libraryOnly) { super(emit, transport, Number(port), libraryOnly); } } } :
+            name === "child_process" ? { spawn(executable, args, options) { const child = processes.spawn(executable, [...args, "--port", port], options); childPid = child.pid; return child; } } : local(name),
+            directory, device, {});
+        process.on("message", () => process.exit(0));
+        device.exports.startup.then(ok => process.send({ ok, pid: childPid }));
+    `;
+    const { spawn } = require("node:child_process");
+    const worker = spawn(process.execPath, ["-e", source, packagePath, filename, String(port)], { stdio: ["ignore", "ignore", "ignore", "ipc"], shell: false, windowsHide: true });
+    let companionPid;
+    try {
+        const ready = await new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error("Device worker startup timed out")), 20000);
+            worker.once("message", value => { clearTimeout(timer); resolve(value); });
+            worker.once("error", error => { clearTimeout(timer); reject(error); });
+            worker.once("exit", code => { clearTimeout(timer); reject(new Error("Device worker exited: " + code)); });
+        });
+        companionPid = ready.pid; assert.equal(ready.ok, true); assert(companionPid);
+        const exited = new Promise(resolve => worker.once("exit", resolve));
+        worker.send("close"); await exited;
+        const deadline = Date.now() + 5000;
+        let alive = true;
+        while (alive && Date.now() < deadline) {
+            try { process.kill(companionPid, 0); await new Promise(resolve => setTimeout(resolve, 25)); }
+            catch (error) { if (error.code !== "ESRCH") throw error; alive = false; }
+        }
+        assert.equal(alive, false, "owned companion exits with the device Node process");
+    } finally {
+        if (worker.exitCode === null) worker.kill();
+        if (companionPid) { try { process.kill(companionPid); } catch {} }
         fs.rmSync(root, { recursive: true, force: true });
     }
 });
