@@ -5,7 +5,8 @@ const path = require("path");
 const { spawn } = require("child_process");
 const { Client, normalizeLibraryPath, watchLibrary } = require("./client");
 const { Preferences } = require("./preferences");
-const { companionExecutable, gitEnvironment, gitStatusLaunch } = require("./platform");
+const { LiveSaveState } = require("./live-save-state");
+const { companionExecutable, gitEnvironment, gitStatusLaunch, saveLiveSetLaunch } = require("./platform");
 const client = new Client((kind, ...values) => {
     if (kind === "console") { max.post("Ableton Git: " + values.join(" ")); return; }
     if (["status", "warning", "detail"].includes(kind)) {
@@ -28,7 +29,7 @@ const client = new Client((kind, ...values) => {
 const preferences = new Preferences();
 let library = "";
 try { library = preferences.loadLibrary(); }
-catch { max.post("Ableton Git: Unable to read the saved library folder. Enter it again and Start companion to save it."); }
+catch { max.post("Ableton Git: Unable to read the saved library folder. Enter it again and press Enter or Tab to save it."); }
 let child = null;
 let libraryWatcher = null;
 let pendingLibrary = null;
@@ -38,6 +39,11 @@ let nextStart = 0;
 let visible = false;
 let scanPending = false;
 let scanPromise = null;
+let liveModified = false;
+const liveSaveState = new LiveSaveState(__dirname, state => {
+    liveModified = state.known && state.modified;
+    client.emit("livemodified", liveModified ? 1 : 0);
+}, error => client.emit("console", "Unable to check unsaved Live changes: " + error.message));
 client.scanAllowed = () => visible;
 function stopWatching() { if (libraryWatcher) libraryWatcher.close(); libraryWatcher = null; }
 function scanError(error) {
@@ -77,6 +83,7 @@ max.addHandler("visible", value => {
     const next = Number(value) !== 0;
     if (next === visible) return scanPromise || Promise.resolve();
     visible = next;
+    if (visible) liveSaveState.start(); else liveSaveState.stop();
     if (!visible) {
         stopWatching(); scanPending = false;
         if (child && client.token && !client.busy)
@@ -134,9 +141,40 @@ function changeLibrary(value) {
 }
 max.addHandler("library", (...parts) => changeLibrary(normalizeLibraryPath(parts.join(" "))));
 max.addHandler("description", (...parts) => client.setDescription(parts.join(" ")));
+max.addHandler("repo", () => client.openRepository());
+let savingLive = false;
+max.addHandler("savelive", async () => {
+    if (client.busy || savingLive || !liveModified) return false;
+    savingLive = true;
+    try {
+        const launch = saveLiveSetLaunch(__dirname);
+        const helper = spawn(launch.file, launch.args, launch.options);
+        await new Promise((resolve, reject) => {
+            let errorText = "";
+            const timer = setTimeout(() => { helper.kill(); reject(new Error("Save request timed out. Check Live or macOS permissions, then retry.")); }, 15000);
+            helper.stderr?.on("data", data => { errorText = (errorText + data.toString()).slice(-2048); });
+            helper.once("error", error => { clearTimeout(timer); reject(error); });
+            helper.once("exit", code => {
+                clearTimeout(timer);
+                if (code === 0) resolve();
+                else reject(new Error(errorText.trim() || "Unable to request Save in Live. On macOS, allow Automation and Accessibility access for the Max/Live helper."));
+            });
+        });
+        client.emit("status", "Save requested in Live. Complete Save As if prompted.");
+        return true;
+    } catch (error) {
+        client.emit("status", error.message);
+        return false;
+    } finally {
+        savingLive = false;
+        client.emit("savefinished");
+    }
+});
 max.addHandler("snapshot", () => client.snapshot());
 max.addHandler("push", () => client.push());
 max.addHandler("init", () => client.init());
+max.addHandler("initprompt", () => client.requestInitialization());
+max.addHandler("initconfirm", (...parts) => client.confirmInitialization(parts.join(" ")));
 max.addHandler("gitstatus", () => client.run(async () => {
     const root = path.resolve(library);
     if (!library || !path.isAbsolute(library) || !fs.statSync(root).isDirectory())
@@ -150,7 +188,7 @@ max.addHandler("gitstatus", () => client.run(async () => {
     client.emit("status", "Opened " + launch.label + " with Git status for the library.");
 }, false));
 max.addHandler("refresh", () => client.run(async () => {
-    if (!client.token) throw new Error("Start the companion first.");
+    if (!client.token) throw new Error("Enter a valid library folder and press Enter or Tab.");
     await client.checkTools(); await client.refresh(); await client.refreshState(); client.emit("status", "Ready. Library and changed files refreshed.");
 }));
 async function launchCompanion() {
@@ -218,6 +256,7 @@ max.addHandler("start", startCompanion);
 max.addHandler("stop", () => client.run(async () => {
     // Compatibility with older patches and orderly test cleanup; no visible Stop control.
     automaticStart = false;
+    liveSaveState.stop();
     await shutdownCompanion();
     client.emit("status", "Companion stopped.");
 }, false));
@@ -228,9 +267,11 @@ const stateTimer = setInterval(() => {
         return;
     }
     if (visible) scanVisible();
+    if (visible && automaticStart) liveSaveState.start();
 }, 5000);
 stateTimer.unref();
-process.on("exit", () => { automaticStart = false; clearInterval(stateTimer); stopWatching(); if (child) child.kill(); });
+process.on("exit", () => { automaticStart = false; clearInterval(stateTimer); stopWatching(); liveSaveState.stop(); if (child) child.kill(); });
+client.emit("livemodified", 0);
 client.emit("libraryrestore", library);
 client.emit("descriptionclear");
 client.emit("visibilityrequest", "start");

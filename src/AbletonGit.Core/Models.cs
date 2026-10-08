@@ -36,12 +36,13 @@ public interface ISetReader { Task<ProjectModel> ReadAsync(ProjectLocation locat
 public sealed record FileChange(string State, string Path, string? OriginalPath = null);
 public sealed record SnapshotEntry(string Hash, string Message);
 public sealed record RepositoryState(bool Exists, string? Branch, string? Remote, string? Upstream, int? Ahead, int? Behind,
-    IReadOnlyList<FileChange> Changes, SnapshotEntry? LastSnapshot);
+    IReadOnlyList<FileChange> Changes, SnapshotEntry? LastSnapshot, string? GitHubUrl = null, bool CanInitialPush = false);
 public interface IGitRepository
 {
     Task<ProcessResult> VersionAsync(bool lfs, string directory, CancellationToken ct);
     Task<string?> RootAsync(string directory, CancellationToken ct);
     Task InitializeAsync(string directory, CancellationToken ct);
+    Task ConfigureGitHubRemoteAsync(string directory, string url, CancellationToken ct);
     Task InstallLfsAsync(string directory, CancellationToken ct);
     Task<bool> LfsConfiguredAsync(string directory, CancellationToken ct);
     Task<RepositoryState> StateAsync(string directory, CancellationToken ct);

@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AbletonGit.Infrastructure\AbletonGit.Infrastructure.csproj" />
     <None Include="..\..\README.md" Pack="true" PackagePath="/" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -11,7 +12,7 @@
     <ToolCommandName>abletongit</ToolCommandName>
     <PackageId>AbletonGit.Cli</PackageId>
     <Version>0.1.0</Version>
-    <Description>Musician-oriented Ableton project Snapshots with semantic metadata and Git LFS.</Description>
+    <Description>Ableton Total Git: version control for Ableton Live project libraries, with semantic Set reports and Git LFS.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>

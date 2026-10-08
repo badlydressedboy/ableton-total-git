@@ -93,8 +93,9 @@ public sealed class LibraryService(IGitRepository git, ISetReader reader, Metada
         using var held = CompanionService.Lock(root);
         return await Write(root, model, ct);
     }
-    public async Task<LibraryInit> InitAsync(string path, CancellationToken ct)
+    public async Task<LibraryInit> InitAsync(string path, CancellationToken ct, string? remoteUrl = null)
     {
+        var clone = GitHubRemote.CloneUrl(remoteUrl);
         var root = Root(path); var model = await ProjectAsync(root, ct);
         await Tools(root, ct);
         var existing = await git.RootAsync(root, ct);
@@ -103,6 +104,7 @@ public sealed class LibraryService(IGitRepository git, ISetReader reader, Metada
         using var held = CompanionService.Lock(root);
         var changes = new List<string>();
         if (existing is null) { await git.InitializeAsync(root, ct); changes.Add("Initialised one repository for the project library (main)."); }
+        if (clone is not null) { await git.ConfigureGitHubRemoteAsync(root, clone, ct); changes.Add("Connected GitHub origin; the first Push will set branch tracking."); }
         await git.InstallLfsAsync(root, ct); changes.Add("Verified/installed repository-local Git LFS.");
         var patterns = new[] { "*.wav", "*.aif", "*.aiff", "*.flac", "*.[wW][aA][vV]", "*.[aA][iI][fF]", "*.[aA][iI][fF][fF]", "*.[fF][lL][aA][cC]" };
         if (await CompanionService.AppendLines(root, ".gitattributes", patterns.Select(p => p + " filter=lfs diff=lfs merge=lfs -text").ToList(), ct)) changes.Add("Added library-wide LFS audio rules.");

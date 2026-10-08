@@ -4,10 +4,11 @@ const fs = require("fs");
 const path = require("path");
 const boxes = [], lines = [];
 const help = {
+    repo: ["Repo", "Open the library's GitHub repository in your browser. Shown only for an initialised library with a recognised github.com remote. Uses the current branch's remote, otherwise origin or the first remote, and its push URL. Private repositories may require signing in."],
     library: ["Library folder", "Full path to the parent Ableton projects library tracked in one Git repository. This folder is remembered and starts automatically next time. Press Enter or Tab to apply a folder edit and start automatically. Changing to another valid folder automatically restarts the running companion and rescans. Folder changes wait for an active operation to finish. Editing is locked while an operation runs."],
     description: ["Commit Comment", "Comment recorded with the next commit. Click the default Raw Creativity text to select it all for easy replacement. Custom comments retain normal cursor behavior. Enter at least four characters after trimming surrounding spaces to commit changed files. Raw Creativity returns after a successful commit. Editing is locked while an operation runs. Uploading existing commits does not require a new comment."],
-    start: ["Start companion", "Retry starting the background companion for the library folder and check Git and Git LFS. Valid folder input and saved folders start automatically; unexpected exits are restarted. Disabled while this device already owns a running companion or an operation is active. A valid folder and the companion files are required."],
-    init: ["Initialise library", "Create the library Git repository, configure Git LFS and generate project reports. Disabled if the companion is not connected, Git or Git LFS checks fail, an operation is active, repository state is unavailable, or this folder is already initialised or is not the repository root."],
+    savelive: ["Save Live Set", "Request Live's File > Save Live Set command on Windows, or Cmd+S on macOS. Unsaved Sets open Live's Save As dialog. Saved file changes are scanned automatically while this device is visible. Saving does not commit or push. Available without a running companion when the current Set has unsaved modifications. Disabled for clean Sets, unknown window state, or an active operation. Close open Live dialogs before saving. macOS requires Automation and Accessibility permission. If multiple Live instances cannot be identified safely, close the other instance or save from Live."],
+    init: ["Initialise repo", "Create the library Git repository, configure Git LFS and generate project reports. A dialog asks for an optional existing GitHub repository URL: leave blank for local-only history or Cancel to do nothing. A supplied URL connects origin and enables automatic branch tracking on the first Push; existing conflicting remotes are preserved. Disabled if the companion is not connected, Git or Git LFS checks fail, an operation is active, repository state is unavailable, or this folder is already initialised or is not the repository root."],
     refresh: ["Refresh library", "Check Git and Git LFS again and refresh the file preview across the whole library. Saved file changes are also scanned automatically. Disabled before the companion connects or while an operation is active."],
     push: ["Push", "Save in Live first. Commit all eligible changed files across the library using Commit Comment, then upload committed history if a tracking remote is configured. Without a remote, the commit stays local. Failed uploads keep the commit for retry. Disabled if the companion is not ready, Git or Git LFS checks fail, an operation runs, state is unavailable, the library needs initialising, changed files lack a four-character comment, or there are neither changes to commit nor commits ready to upload."],
     gitstatus: ["Git status", "Open PowerShell on Windows or Terminal on macOS in the library folder and run git status. The window stays open. Requires a valid folder; the companion can be stopped. Disabled while an operation is active."],
@@ -33,8 +34,10 @@ function wire(from, outlet, to, inlet = 0) { lines.push({ patchline: { source: [
 function obj(id, text, x, y) { return box(id, "newobj", text, [x, y, 250, 22]); }
 function label(id, text, x, y, width) { return box(id, "comment", text, [x, y, width, 20], true); }
 function button(id, caption, command, x, y, width, fields = false) {
-    const guarded = !["start", "gitstatus"].includes(id);
-    box(id, "textbutton", caption, [x, y, width, 25], true, { active: guarded ? 0 : 1, mode: 0, parameter_enable: 0, numinlets: 1, numoutlets: 3, outlettype: ["", "", "int"] });
+    const guarded = !["savelive", "gitstatus"].includes(id);
+    if (id === "savelive")
+        box(id, "jsui", null, [x, y, width, 25], true, { filename: "save-button.js", border: 0, parameter_enable: 0, numinlets: 1, numoutlets: 2 });
+    else box(id, "textbutton", caption, [x, y, width, 25], true, { active: guarded ? 0 : 1, mode: 0, parameter_enable: 0, numinlets: 1, numoutlets: 3, outlettype: ["", "", "int"] });
     box(id + "cmd", "message", command, [x, 260 + boxes.length * 6, 100, 22]);
     if (fields) {
         obj(id + "trigger", "t b b b", x, 230);
@@ -56,9 +59,16 @@ const inputStyle = { fontsize: 12, lines: 1, wordwrap: 0, autoscroll: 1, border:
 box("library", "textedit", "", [85, 22, 440, 25], true, { ...inputStyle, numinlets: 1, numoutlets: 4, parameter_enable: 0, keymode: 1, outputmode: 1, valuemode: 0 });
 box("description", "textedit", "Raw Creativity", [125, 80, 230, 25], true, { ...inputStyle, numinlets: 1, numoutlets: 4, parameter_enable: 0, keymode: 1, outputmode: 1 });
 label("descriptionlabel", "Commit Comment", 8, 84, 110);
-label("details", "", 8, 140, 537);
+label("details", "", 65, 134, 480);
+box("repo", "jsui", null, [8, 134, 45, 20], true, {
+    filename: "repo-link.js", hidden: 1, border: 0, parameter_enable: 0,
+    numinlets: 1, numoutlets: 1, outlettype: [""]
+});
+obj("repoclick", "t b", 1090, 1220); wire("repo", 0, "repoclick");
+box("repocommand", "message", "repo", [1090, 1250, 60, 22]);
+wire("repoclick", 0, "repocommand"); wire("repocommand", 0, "node");
 label("status", "Loading companion script...", 8, 110, 537);
-label("filesummary", "Start the companion to preview files.", 555, 0, 365);
+label("filesummary", "Waiting for the companion to preview files.", 555, 0, 365);
 box("filelist", "jsui", null, [555, 22, 365, 140], true, {
     filename: "file-list.js", border: 0, parameter_enable: 0, numinlets: 1, numoutlets: 0
 });
@@ -92,7 +102,24 @@ box("visibilityprobe", "jsui", null, [0, 0, 930, 1], false, {
 });
 wire("visibilityprobe", 0, "node");
 obj("runtimeconsole", "print AbletonGit-runtime", 380, 500); wire("node", 1, "runtimeconsole");
-obj("route", "route status warning busy projectclear projectitem projectselect detail mutations startenabled stopenabled initenabled pushenabled snapshotenabled refreshenabled filelist filesummary descriptionclear libraryrestore scopeselect visibilityrequest", 8, 550);
+obj("route", "route status warning busy projectclear projectitem projectselect detail mutations startenabled stopenabled initenabled pushenabled snapshotenabled refreshenabled filelist filesummary descriptionclear libraryrestore scopeselect visibilityrequest repovisible repourl initdialog savefinished livemodified", 8, 550);
+obj("livemodified", "prepend modified", 1250, 1370); wire("route", 24, "livemodified"); wire("livemodified", 0, "savelive");
+obj("savefinisheddefer", "deferlow", 1250, 1290); wire("route", 23, "savefinisheddefer");
+box("savecursorreset", "message", "resetcursor", [1250, 1330, 95, 22]);
+wire("savefinisheddefer", 0, "savecursorreset"); wire("savecursorreset", 0, "savelive");
+obj("initdialogtrigger", "t b b", 8, 1290); wire("route", 22, "initdialogtrigger");
+box("initdialogclear", "message", "clearsymbol", [280, 1290, 85, 22]);
+obj("initdialog", 'dialog "Optional existing GitHub repository URL. Leave blank for local only. Cancel makes no changes."', 550, 1290);
+wire("initdialogtrigger", 1, "initdialogclear"); wire("initdialogclear", 0, "initdialog");
+wire("initdialogtrigger", 0, "initdialog");
+obj("initdialogvalue", "route symbol", 8, 1330); obj("initdialogconfirm", "prepend initconfirm", 280, 1330);
+wire("initdialog", 0, "initdialogvalue"); wire("initdialogvalue", 0, "initdialogconfirm"); wire("initdialogconfirm", 0, "node");
+obj("repohidden", "== 0", 8, 1220); obj("repohide", "prepend hidden", 280, 1220);
+wire("route", 20, "repohidden"); wire("repohidden", 0, "repohide"); wire("repohide", 0, "repo");
+obj("repoenabled", "prepend enabled", 280, 1250);
+wire("route", 20, "repoenabled"); wire("repoenabled", 0, "repo");
+box("repobrowser", "message", "; max launchbrowser $1", [550, 1220, 190, 22]);
+wire("route", 21, "repobrowser");
 wire("route", 19, "visibilityprobe");
 wire("node", 0, "route");
 for (const [outlet, target] of [[0, "status"], [6, "details"], [15, "filesummary"]]) {
@@ -102,7 +129,7 @@ for (const [outlet, target] of [[0, "status"], [6, "details"], [15, "filesummary
 obj("notbusy", "== 0", 220, 630); obj("active", "prepend active", 220, 660);
 wire("route", 2, "notbusy"); wire("notbusy", 0, "active");
 obj("mutations", "prepend active", 740, 660); wire("route", 7, "mutations");
-for (const [outlet, id] of [[8, "start"], [10, "init"], [11, "push"], [12, "snapshot"], [13, "refresh"]]) {
+for (const [outlet, id] of [[10, "init"], [11, "push"], [12, "snapshot"], [13, "refresh"]]) {
     obj(id + "active", "prepend active", 800, 700 + outlet * 30); wire("route", outlet, id + "active");
 }
 wire("route", 14, "filelist");
@@ -138,8 +165,9 @@ for (const id of ["library", "description"]) {
     obj(id + "prefix", "prepend " + id, 270, id === "library" ? 720 : 770);
     wire(id, 0, id + "route"); wire(id + "route", 0, id + "prefix"); wire(id + "prefix", 0, "node");
 }
-button("start", "Start companion", "start", 85, 50, 130, true);
-button("init", "Initialise library", "init", 225, 50, 130);
+button("init", "Initialise repo", "initprompt", 85, 50, 130);
+obj("saveliveactive", "prepend active", 1250, 700); wire("notbusy", 0, "saveliveactive");
+button("savelive", "Save Live Set", "savelive", 225, 50, 130);
 button("refresh", "Refresh library", "refresh", 365, 50, 160);
 button("push", "Push", "push", 365, 80, 75, true);
 obj("gitstatusactive", "prepend active", 1250, 660); wire("notbusy", 0, "gitstatusactive");
@@ -150,5 +178,5 @@ obj("defaults", "loadbang", 300, 850);
 const patch = { patcher: { fileversion: 1, appversion: { major: 8, minor: 6, revision: 5, architecture: "x64", modernui: 1 },
     classnamespace: "box", title: "Ableton Total Git", rect: [0, 0, 930, 1200], openinpresentation: 1, devicewidth: 930,
     default_fontsize: 12, default_fontface: 0, default_fontname: "Arial", boxes, lines,
-    dependency_cache: ["device.js", "client.js", "preferences.js", "platform.js", "visibility.js", "file-list.js"].map(name => ({ name, bootpath: ".", type: "TEXT", implicit: 1 })) } };
+    dependency_cache: ["device.js", "client.js", "preferences.js", "platform.js", "visibility.js", "file-list.js", "repo-link.js", "save-button.js", "live-save-state.js"].map(name => ({ name, bootpath: ".", type: "TEXT", implicit: 1 })) } };
 fs.writeFileSync(path.join(__dirname, "Ableton Total Git.maxpat"), JSON.stringify(patch, null, 2) + "\n");

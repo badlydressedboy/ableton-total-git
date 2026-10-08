@@ -187,21 +187,77 @@
           "id": "details",
           "maxclass": "comment",
           "patching_rect": [
-            8,
-            140,
-            537,
+            65,
+            134,
+            480,
             20
           ],
           "text": "",
           "presentation": 1,
           "presentation_rect": [
-            8,
-            140,
-            537,
+            65,
+            134,
+            480,
             20
           ],
           "annotation_name": "Analysis warnings",
           "annotation": "Warnings from analysing saved Sets and media references. Complete warnings are printed in the Max Console. Resolve external or missing media in Live with Collect All and Save when appropriate."
+        }
+      },
+      {
+        "box": {
+          "id": "repo",
+          "maxclass": "jsui",
+          "patching_rect": [
+            8,
+            134,
+            45,
+            20
+          ],
+          "filename": "repo-link.js",
+          "hidden": 1,
+          "border": 0,
+          "parameter_enable": 0,
+          "numinlets": 1,
+          "numoutlets": 1,
+          "outlettype": [
+            ""
+          ],
+          "presentation": 1,
+          "presentation_rect": [
+            8,
+            134,
+            45,
+            20
+          ],
+          "annotation_name": "Repo",
+          "annotation": "Open the library's GitHub repository in your browser. Shown only for an initialised library with a recognised github.com remote. Uses the current branch's remote, otherwise origin or the first remote, and its push URL. Private repositories may require signing in."
+        }
+      },
+      {
+        "box": {
+          "id": "repoclick",
+          "maxclass": "newobj",
+          "patching_rect": [
+            1090,
+            1220,
+            250,
+            22
+          ],
+          "text": "t b"
+        }
+      },
+      {
+        "box": {
+          "id": "repocommand",
+          "maxclass": "message",
+          "patching_rect": [
+            1090,
+            1250,
+            60,
+            22
+          ],
+          "text": "repo"
         }
       },
       {
@@ -236,7 +292,7 @@
             365,
             20
           ],
-          "text": "Start the companion to preview files.",
+          "text": "Waiting for the companion to preview files.",
           "presentation": 1,
           "presentation_rect": [
             555,
@@ -506,7 +562,163 @@
             250,
             22
           ],
-          "text": "route status warning busy projectclear projectitem projectselect detail mutations startenabled stopenabled initenabled pushenabled snapshotenabled refreshenabled filelist filesummary descriptionclear libraryrestore scopeselect visibilityrequest"
+          "text": "route status warning busy projectclear projectitem projectselect detail mutations startenabled stopenabled initenabled pushenabled snapshotenabled refreshenabled filelist filesummary descriptionclear libraryrestore scopeselect visibilityrequest repovisible repourl initdialog savefinished livemodified"
+        }
+      },
+      {
+        "box": {
+          "id": "livemodified",
+          "maxclass": "newobj",
+          "patching_rect": [
+            1250,
+            1370,
+            250,
+            22
+          ],
+          "text": "prepend modified"
+        }
+      },
+      {
+        "box": {
+          "id": "savefinisheddefer",
+          "maxclass": "newobj",
+          "patching_rect": [
+            1250,
+            1290,
+            250,
+            22
+          ],
+          "text": "deferlow"
+        }
+      },
+      {
+        "box": {
+          "id": "savecursorreset",
+          "maxclass": "message",
+          "patching_rect": [
+            1250,
+            1330,
+            95,
+            22
+          ],
+          "text": "resetcursor"
+        }
+      },
+      {
+        "box": {
+          "id": "initdialogtrigger",
+          "maxclass": "newobj",
+          "patching_rect": [
+            8,
+            1290,
+            250,
+            22
+          ],
+          "text": "t b b"
+        }
+      },
+      {
+        "box": {
+          "id": "initdialogclear",
+          "maxclass": "message",
+          "patching_rect": [
+            280,
+            1290,
+            85,
+            22
+          ],
+          "text": "clearsymbol"
+        }
+      },
+      {
+        "box": {
+          "id": "initdialog",
+          "maxclass": "newobj",
+          "patching_rect": [
+            550,
+            1290,
+            250,
+            22
+          ],
+          "text": "dialog \"Optional existing GitHub repository URL. Leave blank for local only. Cancel makes no changes.\""
+        }
+      },
+      {
+        "box": {
+          "id": "initdialogvalue",
+          "maxclass": "newobj",
+          "patching_rect": [
+            8,
+            1330,
+            250,
+            22
+          ],
+          "text": "route symbol"
+        }
+      },
+      {
+        "box": {
+          "id": "initdialogconfirm",
+          "maxclass": "newobj",
+          "patching_rect": [
+            280,
+            1330,
+            250,
+            22
+          ],
+          "text": "prepend initconfirm"
+        }
+      },
+      {
+        "box": {
+          "id": "repohidden",
+          "maxclass": "newobj",
+          "patching_rect": [
+            8,
+            1220,
+            250,
+            22
+          ],
+          "text": "== 0"
+        }
+      },
+      {
+        "box": {
+          "id": "repohide",
+          "maxclass": "newobj",
+          "patching_rect": [
+            280,
+            1220,
+            250,
+            22
+          ],
+          "text": "prepend hidden"
+        }
+      },
+      {
+        "box": {
+          "id": "repoenabled",
+          "maxclass": "newobj",
+          "patching_rect": [
+            280,
+            1250,
+            250,
+            22
+          ],
+          "text": "prepend enabled"
+        }
+      },
+      {
+        "box": {
+          "id": "repobrowser",
+          "maxclass": "message",
+          "patching_rect": [
+            550,
+            1220,
+            190,
+            22
+          ],
+          "text": "; max launchbrowser $1"
         }
       },
       {
@@ -581,19 +793,6 @@
           "patching_rect": [
             740,
             660,
-            250,
-            22
-          ],
-          "text": "prepend active"
-        }
-      },
-      {
-        "box": {
-          "id": "startactive",
-          "maxclass": "newobj",
-          "patching_rect": [
-            800,
-            940,
             250,
             22
           ],
@@ -953,68 +1152,10 @@
       },
       {
         "box": {
-          "id": "start",
-          "maxclass": "textbutton",
-          "patching_rect": [
-            85,
-            50,
-            130,
-            25
-          ],
-          "active": 1,
-          "mode": 0,
-          "parameter_enable": 0,
-          "numinlets": 1,
-          "numoutlets": 3,
-          "outlettype": [
-            "",
-            "",
-            "int"
-          ],
-          "text": "Start companion",
-          "presentation": 1,
-          "presentation_rect": [
-            85,
-            50,
-            130,
-            25
-          ],
-          "annotation_name": "Start companion",
-          "annotation": "Retry starting the background companion for the library folder and check Git and Git LFS. Valid folder input and saved folders start automatically; unexpected exits are restarted. Disabled while this device already owns a running companion or an operation is active. A valid folder and the companion files are required."
-        }
-      },
-      {
-        "box": {
-          "id": "startcmd",
-          "maxclass": "message",
-          "patching_rect": [
-            85,
-            626,
-            100,
-            22
-          ],
-          "text": "start"
-        }
-      },
-      {
-        "box": {
-          "id": "starttrigger",
-          "maxclass": "newobj",
-          "patching_rect": [
-            85,
-            230,
-            250,
-            22
-          ],
-          "text": "t b b b"
-        }
-      },
-      {
-        "box": {
           "id": "init",
           "maxclass": "textbutton",
           "patching_rect": [
-            225,
+            85,
             50,
             130,
             25
@@ -1029,16 +1170,16 @@
             "",
             "int"
           ],
-          "text": "Initialise library",
+          "text": "Initialise repo",
           "presentation": 1,
           "presentation_rect": [
-            225,
+            85,
             50,
             130,
             25
           ],
-          "annotation_name": "Initialise library",
-          "annotation": "Create the library Git repository, configure Git LFS and generate project reports. Disabled if the companion is not connected, Git or Git LFS checks fail, an operation is active, repository state is unavailable, or this folder is already initialised or is not the repository root."
+          "annotation_name": "Initialise repo",
+          "annotation": "Create the library Git repository, configure Git LFS and generate project reports. A dialog asks for an optional existing GitHub repository URL: leave blank for local-only history or Cancel to do nothing. A supplied URL connects origin and enables automatic branch tracking on the first Push; existing conflicting remotes are preserved. Disabled if the companion is not connected, Git or Git LFS checks fail, an operation is active, repository state is unavailable, or this folder is already initialised or is not the repository root."
         }
       },
       {
@@ -1046,17 +1187,82 @@
           "id": "initcmd",
           "maxclass": "message",
           "patching_rect": [
-            225,
-            644,
+            85,
+            710,
             100,
             22
           ],
-          "text": "init"
+          "text": "initprompt"
         }
       },
       {
         "box": {
           "id": "inittrigger",
+          "maxclass": "newobj",
+          "patching_rect": [
+            85,
+            230,
+            250,
+            22
+          ],
+          "text": "t b"
+        }
+      },
+      {
+        "box": {
+          "id": "saveliveactive",
+          "maxclass": "newobj",
+          "patching_rect": [
+            1250,
+            700,
+            250,
+            22
+          ],
+          "text": "prepend active"
+        }
+      },
+      {
+        "box": {
+          "id": "savelive",
+          "maxclass": "jsui",
+          "patching_rect": [
+            225,
+            50,
+            130,
+            25
+          ],
+          "filename": "save-button.js",
+          "border": 0,
+          "parameter_enable": 0,
+          "numinlets": 1,
+          "numoutlets": 2,
+          "presentation": 1,
+          "presentation_rect": [
+            225,
+            50,
+            130,
+            25
+          ],
+          "annotation_name": "Save Live Set",
+          "annotation": "Request Live's File > Save Live Set command on Windows, or Cmd+S on macOS. Unsaved Sets open Live's Save As dialog. Saved file changes are scanned automatically while this device is visible. Saving does not commit or push. Available without a running companion when the current Set has unsaved modifications. Disabled for clean Sets, unknown window state, or an active operation. Close open Live dialogs before saving. macOS requires Automation and Accessibility permission. If multiple Live instances cannot be identified safely, close the other instance or save from Live."
+        }
+      },
+      {
+        "box": {
+          "id": "savelivecmd",
+          "maxclass": "message",
+          "patching_rect": [
+            225,
+            734,
+            100,
+            22
+          ],
+          "text": "savelive"
+        }
+      },
+      {
+        "box": {
+          "id": "savelivetrigger",
           "maxclass": "newobj",
           "patching_rect": [
             225,
@@ -1105,7 +1311,7 @@
           "maxclass": "message",
           "patching_rect": [
             365,
-            662,
+            752,
             100,
             22
           ],
@@ -1163,7 +1369,7 @@
           "maxclass": "message",
           "patching_rect": [
             365,
-            680,
+            770,
             100,
             22
           ],
@@ -1234,7 +1440,7 @@
           "maxclass": "message",
           "patching_rect": [
             450,
-            704,
+            794,
             100,
             22
           ],
@@ -1295,6 +1501,42 @@
       }
     ],
     "lines": [
+      {
+        "patchline": {
+          "source": [
+            "repo",
+            0
+          ],
+          "destination": [
+            "repoclick",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "repoclick",
+            0
+          ],
+          "destination": [
+            "repocommand",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "repocommand",
+            0
+          ],
+          "destination": [
+            "node",
+            0
+          ]
+        }
+      },
       {
         "patchline": {
           "source": [
@@ -1491,6 +1733,222 @@
         "patchline": {
           "source": [
             "route",
+            24
+          ],
+          "destination": [
+            "livemodified",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "livemodified",
+            0
+          ],
+          "destination": [
+            "savelive",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            23
+          ],
+          "destination": [
+            "savefinisheddefer",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "savefinisheddefer",
+            0
+          ],
+          "destination": [
+            "savecursorreset",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "savecursorreset",
+            0
+          ],
+          "destination": [
+            "savelive",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            22
+          ],
+          "destination": [
+            "initdialogtrigger",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "initdialogtrigger",
+            1
+          ],
+          "destination": [
+            "initdialogclear",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "initdialogclear",
+            0
+          ],
+          "destination": [
+            "initdialog",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "initdialogtrigger",
+            0
+          ],
+          "destination": [
+            "initdialog",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "initdialog",
+            0
+          ],
+          "destination": [
+            "initdialogvalue",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "initdialogvalue",
+            0
+          ],
+          "destination": [
+            "initdialogconfirm",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "initdialogconfirm",
+            0
+          ],
+          "destination": [
+            "node",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            20
+          ],
+          "destination": [
+            "repohidden",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "repohidden",
+            0
+          ],
+          "destination": [
+            "repohide",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "repohide",
+            0
+          ],
+          "destination": [
+            "repo",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            20
+          ],
+          "destination": [
+            "repoenabled",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "repoenabled",
+            0
+          ],
+          "destination": [
+            "repo",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            21
+          ],
+          "destination": [
+            "repobrowser",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
             19
           ],
           "destination": [
@@ -1615,18 +2073,6 @@
           ],
           "destination": [
             "mutations",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "route",
-            8
-          ],
-          "destination": [
-            "startactive",
             0
           ]
         }
@@ -2114,78 +2560,6 @@
       {
         "patchline": {
           "source": [
-            "start",
-            1
-          ],
-          "destination": [
-            "starttrigger",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "starttrigger",
-            2
-          ],
-          "destination": [
-            "description",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "starttrigger",
-            1
-          ],
-          "destination": [
-            "library",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "starttrigger",
-            0
-          ],
-          "destination": [
-            "startcmd",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "startcmd",
-            0
-          ],
-          "destination": [
-            "node",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "startactive",
-            0
-          ],
-          "destination": [
-            "start",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
             "init",
             1
           ],
@@ -2227,6 +2601,66 @@
           ],
           "destination": [
             "init",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "notbusy",
+            0
+          ],
+          "destination": [
+            "saveliveactive",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "savelive",
+            1
+          ],
+          "destination": [
+            "savelivetrigger",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "savelivetrigger",
+            0
+          ],
+          "destination": [
+            "savelivecmd",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "savelivecmd",
+            0
+          ],
+          "destination": [
+            "node",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "saveliveactive",
+            0
+          ],
+          "destination": [
+            "savelive",
             0
           ]
         }
@@ -2493,6 +2927,24 @@
       },
       {
         "name": "file-list.js",
+        "bootpath": ".",
+        "type": "TEXT",
+        "implicit": 1
+      },
+      {
+        "name": "repo-link.js",
+        "bootpath": ".",
+        "type": "TEXT",
+        "implicit": 1
+      },
+      {
+        "name": "save-button.js",
+        "bootpath": ".",
+        "type": "TEXT",
+        "implicit": 1
+      },
+      {
+        "name": "live-save-state.js",
         "bootpath": ".",
         "type": "TEXT",
         "implicit": 1

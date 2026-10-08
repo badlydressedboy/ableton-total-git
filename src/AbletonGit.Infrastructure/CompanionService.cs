@@ -28,8 +28,9 @@ public sealed class CompanionService(IGitRepository git, ISetReader reader, Meta
         var initialized = correctRoot && state.Exists && await git.LfsConfiguredAsync(root, ct) &&
             File.Exists(Path.Combine(root, ".gitattributes")) && File.Exists(Path.Combine(root, ".gitignore")) &&
             File.Exists(Path.Combine(root, catalog));
-        var canPush = correctRoot && state.Exists && state.Remote is not null && state.Upstream is not null &&
-            state.Ahead > 0 && state.Branch?.StartsWith("Detached", StringComparison.Ordinal) != true;
+        var canPush = correctRoot && state.Exists && state.Remote is not null &&
+            (state.Upstream is not null && state.Ahead > 0 || state.CanInitialPush && state.LastSnapshot is not null) &&
+            state.Branch?.StartsWith("Detached", StringComparison.Ordinal) != true;
         return new(initialized, correctRoot && !initialized, canPush, state);
     }
     public async Task<SnapshotPreview> PreviewAsync(string path, CancellationToken ct)
@@ -52,8 +53,9 @@ public sealed class CompanionService(IGitRepository git, ISetReader reader, Meta
         logger.LogInformation("Analysed {Project}: {Tracks} tracks, {Clips} clips", model.Project.Name, model.Tracks.Count, model.Clips.Count);
         return new(model, changed);
     }
-    public async Task<InitResult> InitAsync(string path, CancellationToken ct)
+    public async Task<InitResult> InitAsync(string path, CancellationToken ct, string? remoteUrl = null)
     {
+        var clone = GitHubRemote.CloneUrl(remoteUrl);
         var location = ProjectDiscovery.Discover(path);
         await ToolsAsync(location.Root, ct);
         var existing = await git.RootAsync(location.Root, ct);
@@ -63,6 +65,7 @@ public sealed class CompanionService(IGitRepository git, ISetReader reader, Meta
         using var projectLock = Lock(location.Root);
         var changes = new List<string>();
         if (existing is null) { await git.InitializeAsync(location.Root, ct); changes.Add("Initialised project repository (main)."); }
+        if (clone is not null) { await git.ConfigureGitHubRemoteAsync(location.Root, clone, ct); changes.Add("Connected GitHub origin; the first Push will set branch tracking."); }
         await git.InstallLfsAsync(location.Root, ct);
         changes.Add("Verified/installed repository-local Git LFS filters and hook.");
         var patterns = new[] { "*.wav", "*.aif", "*.aiff", "*.flac", "*.[wW][aA][vV]", "*.[aA][iI][fF]", "*.[aA][iI][fF][fF]", "*.[fF][lL][aA][cC]" };

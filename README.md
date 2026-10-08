@@ -1,103 +1,54 @@
-# Ableton Git Companion
+﻿# Ableton Total Git
 
-A Windows and macOS .NET 10 companion that turns saved Ableton projects into **Snapshots**: musical descriptions, semantic JSON/Markdown history, original ALS files, and project-local audio stored using Git LFS.
+Keep a Git history of your Ableton projects without leaving Live. Ableton Total Git is a Max for Live device that shows which saved files have changed and lets you commit and push your library from your device chain.
 
-The CLI and loopback HTTP API share the same services. Ableton remains authoritative: this application reads Sets and never rewrites them. A Max for Live UI launches the companion and previews, commits and pushes changes; see [installation instructions](docs/max-for-live.md). GitHub repository creation and restoring projects remain manual operations.
+Save your work, review the file list, add a comment about the moment, and press **Push**. Each commit gives you a named point in your library's history, so you can revisit earlier versions and follow how your music developed. Connect a GitHub repository to keep that history remotely, or keep your commits local.
 
-## Requirements and build
+![Ableton Total Git in Live, with library controls, a commit comment and a preview of changed files](docs/images/ableton-total-git.png)
 
-Windows or macOS, the .NET 10 SDK, Git ([Git for Windows](https://gitforwindows.org/) on Windows) and [Git LFS](https://git-lfs.com/). Self-contained Max for Live packages include the .NET runtime. Configure your Git author name/email using your existing Git tools. GitHub and Ableton Live are not needed to build or test.
+## A history that fits your workflow
 
-```powershell
-dotnet restore AbletonGit.sln --configfile NuGet.Config
-dotnet build AbletonGit.sln --no-restore
-dotnet run --project tests/AbletonGit.Tests --no-build --no-restore
-```
+- **See what changed before committing.** The device lists changed files and shows how many will be committed. Saved changes refresh automatically while the device is visible.
+- **Commit and upload with one button.** Push commits pending changes with your comment, then uploads when a remote is configured. If an upload fails, your local commit remains ready to retry.
+- **Track your whole library together.** One Git repository covers all projects beneath your chosen library folder. Each commit captures changes across that library.
+- **Keep the original Live Sets.** Your saved `.als` files stay in Git history. The companion also creates readable Set reports to help compare changes in Git or on GitHub.
+- **Include your project media.** Git LFS handles project-local audio. Use Live's **Collect All and Save** when you want external samples included in the project.
+- **Set up once.** The device remembers your library folder and starts its companion automatically. A **Repo** link opens your connected GitHub repository.
 
-The test project is a dependency-free executable suite, **not** a `dotnet test` project. Its exit code is nonzero on failure. It creates synthetic gzip XML and temporary Git/LFS repositories, including a local bare remote; no commercial fixtures or network services are required. The solution uses only the .NET and ASP.NET shared frameworks, with no NuGet packages.
+## Get started
 
-## Install the command
+You need Ableton Live with **Max for Live / Node for Max**, [Git](https://git-scm.com/) and [Git LFS](https://git-lfs.com/). Set your Git author name and email before your first commit. Uploading to GitHub also requires an existing repository and Git authentication.
 
-```powershell
-dotnet pack src/AbletonGit.Cli -c Release --no-restore -o artifacts/packages
-dotnet tool install --global AbletonGit.Cli --add-source ./artifacts/packages
-abletongit --help
-```
+1. Download the package for Windows, Apple Silicon Mac or Intel Mac from a successful [GitHub Actions build](https://github.com/badlydressedboy/ableton-total-git/actions/workflows/build.yml).
+2. Extract the complete package into a permanent writable folder, such as a dedicated folder in your User Library's Max Audio Effects presets. Keep the device, its JavaScript files and the `companion` folder together.
+3. Drag **Ableton Total Git.amxd** into Live. An audio track or the Master track works well.
+4. Enter the parent folder containing your Ableton projects in **Library folder**, then press Tab or Enter. The companion starts automatically.
+5. Click **Initialise repo** if needed. Paste an optional existing GitHub repository URL in the prompt, or leave it blank for local-only history.
 
-Alternatively run the compiled command directly:
+The platform packages include the companion runtime. For package selection, installation and troubleshooting, see the [Max for Live device guide](docs/max-for-live.md).
 
-```powershell
-dotnet src/AbletonGit.Cli/bin/Debug/net10.0/abletongit.dll doctor --path "D:\Music\Dub Project\Dub.als"
-```
+## Everyday use
 
-## Make a Snapshot
+1. **Save in Live.** Git records files on disk, so save the Sets you want included before committing.
+2. **Review the file list.** Check the changed paths and file count on the right. **Refresh library** requests an immediate update.
+3. **Write a Commit Comment.** Replace **Raw Creativity** with a useful description, such as “New chorus bass and shorter intro”. A new commit requires at least four characters.
+4. **Press Push.** The device commits the changes across the whole library, then uploads if a remote is configured. Without a remote, the commit is saved locally. The comment resets after a successful commit.
 
-Save your Set in Live. For portability, use **File → Collect All and Save** so the project's samples live inside its folder.
+Hover over controls with Live's **Info View** open for help, including explanations of disabled buttons. Use **Repo** to visit your GitHub history. Restoring an earlier version currently uses your usual Git tools; see the [snapshot workflow](docs/snapshot-workflow.md).
 
-```powershell
-abletongit doctor --path "D:\Music\Dub Project\Dub.als"
-abletongit init --path "D:\Music\Dub Project\Dub.als"
-abletongit analyse --path "D:\Music\Dub Project\Dub.als"
-abletongit diff --path "D:\Music\Dub Project\Dub.als"
-abletongit snapshot "Initial warped stems" --path "D:\Music\Dub Project\Dub.als"
-abletongit status --path "D:\Music\Dub Project\Dub.als"
-abletongit history --path "D:\Music\Dub Project\Dub.als"
-```
+## Documentation
 
-Inside a project with one Set, omit `--path`. You may supply a project directory, a nested directory, or a Set file. When several Sets exist, choose an ALS explicitly. Each analysis covers the selected Set; Snapshots include all eligible project Sets and local audio. In single-project mode, Snapshots require a repository rooted at the Ableton Project itself, to avoid including unrelated parent-repository work.
+- [Device installation, controls and troubleshooting](docs/max-for-live.md)
+- [Project libraries](docs/project-library.md) and [Git LFS media storage](docs/git-lfs.md)
+- [Build from source](docs/building.md) and [testing](docs/testing.md)
+- [Command-line and local API reference](docs/command-line.md)
+- [Architecture](docs/architecture.md), [ALS format](docs/als-format.md) and [prior art](docs/prior-art.md)
+- [Current status and limitations](docs/limitations.md)
 
-Use `--json` for structured output and `--verbose` for diagnostics. `diff` analyses the saved Set in memory and compares it with the last committed `.abletongit/project.json`; running `analyse` repeatedly does not erase that baseline. The generated reports have no timestamps or absolute project paths.
+This is an early project; real-project compatibility and native Windows/macOS device behaviour are still being validated.
 
-## Push
+## Contributing and licence
 
-To track **all projects in one parent-folder repository**, use `--all` on any command. Every Set gets separate semantic metadata; analysis and report generation run in parallel with up to four workers, while Git writes remain serial. See [project library workflow](docs/project-library.md) for commands, layout and migration constraints.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for bug reports, development and pull requests.
 
-Link an **existing private repository** and configure its tracking branch with your normal Git tools. Local operations work without a remote. The companion uses Git's existing credential mechanism, stores no GitHub credentials, and performs no fetch automatically; ahead/behind counts use the last known remote state.
-
-```powershell
-abletongit push --path "D:\Music\Dub Project\Dub.als"
-abletongit snapshot "Added dub bass variation" --push --path "D:\Music\Dub Project\Dub.als"
-```
-
-If Push fails after a Snapshot, the result includes its saved hash and the push error. A local Snapshot remains available.
-
-## Local API
-
-```powershell
-dotnet run --project src/AbletonGit.Api --no-launch-profile -- --path "D:\Music\Dub Project\Dub.als"
-```
-
-Listens only at `http://127.0.0.1:17831` (`--port` can change the port). Startup prints an ephemeral token: send it as `X-AbletonGit-Token` on every request. The fixed project path comes from startup, never a request. Browser Origin/fetch headers and nonnumeric loopback Hosts are rejected.
-
-| Method | Route | Result / body |
-| --- | --- | --- |
-| GET | `/api/status` | Structured status |
-| GET | `/api/tools` | Git/Git LFS availability checks, without project parsing or writes |
-| GET | `/api/project` | Fresh read-only semantic model |
-| GET | `/api/projects` | Project choices and whether library scope is available |
-| GET | `/api/history` | Recent Snapshots |
-| GET | `/api/diff` | Structured changes |
-| POST | `/api/analyse` | Generated model and updated file names |
-| POST | `/api/init` | Initialise configured repository and LFS |
-| POST | `/api/snapshot` | `{ "message": "Added dub bass variation", "push": false }` |
-| POST | `/api/push` | Push configured tracking branch |
-
-Snapshot also accepts `scope: "project"` with a project identifier from `/api/projects`, or `scope: "all"` in library mode. Omitting scope preserves existing behavior. No arbitrary Git commands are exposed. Unknown Snapshot fields are rejected. See [architecture](docs/architecture.md).
-
-## Max for Live
-
-The [M4L UI and installation guide](docs/max-for-live.md) provides a **Snapshot** button with **Current project / All projects** scope, an explicit project dropdown and separate **Push**. The device starts the companion and initialises the library without PowerShell. Project Snapshots in a shared repository preserve pending sibling changes and their committed semantic baselines. Processing remains parallel, with up to four workers; Git writes are serial.
-
-Build the development package with `node max-for-live/package.js`, or a self-contained Windows/macOS package with `node max-for-live/package.js --runtime win-x64` (also `osx-x64` or `osx-arm64`). Packages include `Ableton Total Git.amxd`; keep it beside the accompanying files and re-add it in Live after an update. The file list sits on the right and the presentation fits Live's device panel. Container structure, layout bounds and client integration are checked; native rendering still needs verification in Live. The Max device always previews and commits the complete library, without project or scope selectors.
-
-## Current scope
-
-Supported extraction includes track names/types/order, tempo, scenes, session and arrangement clip names/positions/lengths, return/master devices, nested rack/chain context, best-effort macros and routing, and FileRef dependency warnings. Unknown XML/device types remain readable. IDs are retained where present, with scoped comparisons and positional fallbacks where absent.
-
-This is an initial reader of an undocumented format, verified with synthetic Live 11/12-shaped fixtures. It has not yet been validated against a broad archive of real Sets. It does not compare MIDI note content, automation, full effect parameter state, warp markers or opaque plugin state. External media detection is best effort. No live unsaved-state detection or automatic Save is implemented.
-
-Prepared Git files, conflicts, detached state and ongoing merge/rebase operations block Snapshots. Failures or cancellation after preparation can leave files staged for review in Git; the companion does not discard them. Do not run another Git writer during a Snapshot.
-
-Read [prior art](docs/prior-art.md), [ALS/schema notes](docs/als-format.md), [LFS](docs/git-lfs.md), [Snapshot workflow](docs/snapshot-workflow.md) and [testing](docs/testing.md).
-
-Repository initialization ignores Windows `desktop.ini` folder metadata at every depth, including mixed-case names. Existing ignore rules are preserved.
+Licensed under the [MIT licence](LICENSE). Music, samples and other assets you track retain their own rights. Ableton Total Git is an independent project and is not affiliated with or endorsed by Ableton or Cycling '74.

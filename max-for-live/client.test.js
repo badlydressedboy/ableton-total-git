@@ -29,6 +29,38 @@ test("visibility probe reports drawing on the Task and goes hidden when drawing 
     context.paint(); tick(); assert.deepEqual(events.at(-1), [0, "visible", 1]);
     context.notifydeleted(); assert.equal(cancelled, 2); assert(redraws > 0);
 });
+test("Save button restores the cursor on completion without a mouse move and guards clicks", () => {
+    const vm = require("node:vm");
+    const cursors = [], events = [];
+    const context = vm.createContext({
+        mgraphics: { init() {}, redraw() {} }, box: { rect: [0, 0, 130, 25] },
+        setcursor: value => cursors.push(value), outlet: (...values) => events.push(values)
+    });
+    vm.runInContext(fs.readFileSync(path.join(__dirname, "save-button.js"), "utf8"), context);
+    context.onclick(10, 10); context.ondrag(10, 10, 0);
+    assert.equal(events.length, 0, "Save starts disabled until unsaved changes are known");
+    context.modified(1);
+    context.onclick(10, 10); context.ondrag(10, 10, 0);
+    assert.deepEqual(events, [[1, "bang"]]);
+    context.active(0);
+    context.onclick(10, 10); context.ondrag(10, 10, 0);
+    assert.equal(events.length, 1, "disabled button cannot request another Save");
+    cursors.length = 0;
+    context.active(1);
+    assert.deepEqual(cursors, [1], "completion restores the arrow without any mouse callback");
+    cursors.length = 0;
+    context.resetcursor();
+    assert.deepEqual(cursors, [0, 1], "Save completion invalidates the cached cursor before restoring arrow");
+    context.onclick(10, 10); context.ondrag(140, 10, 0);
+    assert.equal(events.length, 1, "release outside cancels the click");
+    context.onclick(10, 10); context.ondrag(10, 10, 0); context.ondrag(10, 10, 0);
+    assert.equal(events.length, 2, "each released click requests Save only once");
+    context.modified(0);
+    context.active(1);
+    context.onclick(10, 10); context.ondrag(10, 10, 0);
+    assert.equal(events.length, 2, "an idle clean Set still cannot be saved");
+});
+
 test("hiding during state refresh prevents the following file scan", async () => {
     let visible = true, finish;
     const calls = [];
@@ -42,6 +74,34 @@ test("hiding during state refresh prevents the following file scan", async () =>
     visible = false; finish({ initialized: true }); await refresh;
     await client.refreshState(); await client.refresh();
     assert.deepEqual(calls, ["/api/ui-state"]);
+});
+
+test("Live modification watcher distinguishes dirty Sets from Git changes and fails closed", () => {
+    const { titleState, LiveSaveState } = require("./live-save-state");
+    const { EventEmitter } = require("node:events");
+    assert.deepEqual(titleState("Song - Ableton Live 12 Suite"), { known: true, modified: false });
+    assert.deepEqual(titleState("Song (unsaved) - Ableton Live 12 Suite"), { known: true, modified: true });
+    assert.deepEqual(titleState("Song* - Ableton Live 12 Suite"), { known: true, modified: true });
+    assert.deepEqual(titleState("An unsaved idea - Ableton Live 12 Suite"), { known: true, modified: false });
+    assert.deepEqual(titleState("Max Console"), { known: false, modified: false });
+    const states = [], errors = [], children = [];
+    const watcher = new LiveSaveState(__dirname, state => states.push(state), error => errors.push(error), () => {
+        const child = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.kill = () => { child.killed = true; };
+        children.push(child); return child;
+    });
+    watcher.start(); watcher.start(); assert.equal(children.length, 1);
+    const child = children[0];
+    child.stdout.emit("data", '{"available":true,"title":"Song (un');
+    child.stdout.emit("data", 'saved) - Ableton Live 12 Suite"}\n');
+    assert.deepEqual(states.at(-1), { known: true, modified: true });
+    child.stdout.emit("data", '{"available":true,"modified":false}\n');
+    assert.deepEqual(states.at(-1), { known: true, modified: false }, "saving externally clears dirty state");
+    child.stdout.emit("data", '{"available":false,"modified":true}\n');
+    assert.deepEqual(states.at(-1), { known: false, modified: false });
+    watcher.stop(); assert(child.killed);
+    child.stdout.emit("data", '{"available":true,"modified":true}\n');
+    assert.deepEqual(states.at(-1), { known: false, modified: false }, "closed watcher cannot enable Save");
+    assert.equal(errors.length, 0);
 });
 test("library watcher queues saves behind operations, ignores metadata, and stops cleanly", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "AbletonGit-watch-"));
@@ -75,6 +135,59 @@ async function unusedPort() {
     return port;
 }
 const readyState = { initialized: true, canInitialize: false, canPush: false };
+test("initialization dialog defers writes, accepts an optional remote and ignores stale replies", async () => {
+    const events = [], writes = [];
+    let state = { initialized: false, canInitialize: true, canPush: false };
+    const client = new Client((...event) => events.push(event), async (method, endpoint, body) => {
+        if (endpoint === "/api/ui-state") return state;
+        if (endpoint === "/api/init") { writes.push(body); state = readyState; return {}; }
+        return { count: 0, files: [] };
+    }, 17831, true);
+    client.token = "test"; client.toolsReady = true; client.all = true;
+    await client.requestInitialization();
+    assert.deepEqual(lastEvent(events, "initdialog"), ["initdialog"]);
+    assert.equal(writes.length, 0, "opening or cancelling a dialog makes no writes");
+    assert.equal(client.busy, false, "Cancel cannot leave controls locked");
+    await client.confirmInitialization("  https://github.com/team/library  ");
+    assert.deepEqual(writes, [{ remoteUrl: "https://github.com/team/library" }]);
+    assert.equal(await client.confirmInitialization("https://github.com/other/repo"), false, "reply consumed once");
+    state = { initialized: false, canInitialize: true, canPush: false };
+    await client.requestInitialization(); await client.confirmInitialization("");
+    assert.deepEqual(writes.at(-1), { remoteUrl: null });
+    state = { initialized: false, canInitialize: true, canPush: false };
+    await client.requestInitialization(); client.disconnect();
+    client.token = "different-library"; client.toolsReady = true;
+    assert.equal(await client.confirmInitialization("https://github.com/team/old"), false, "stale dialog cannot initialise a different library");
+    assert.equal(writes.length, 2);
+});
+test("Repo link is conditional, opens only on click, and clears on disconnect or changed remote", async () => {
+    const events = [];
+    let state = { ...readyState, repository: { gitHubUrl: "https://github.com/musician/library" } };
+    const client = new Client((...event) => events.push(event), async (_method, endpoint) =>
+        endpoint === "/api/ui-state" ? state : { count: 0, files: [] }, 17831, true);
+    assert.equal(client.openRepository(), false);
+    client.token = "test"; client.toolsReady = true; client.all = true;
+    await client.refreshState();
+    assert.deepEqual(lastEvent(events, "repovisible"), ["repovisible", 1]);
+    assert.equal(events.filter(e => e[0] === "repourl").length, 0, "polling never opens browser");
+    assert.equal(client.openRepository(), true);
+    assert.deepEqual(lastEvent(events, "repourl"), ["repourl", "https://github.com/musician/library"]);
+    for (const next of [
+        { ...state, initialized: false },
+        { ...readyState, repository: { gitHubUrl: null } },
+        { ...readyState, repository: { gitHubUrl: "https://github.com.evil.test/musician/library" } }
+    ]) {
+        state = next; await client.refreshState();
+        assert.deepEqual(lastEvent(events, "repovisible"), ["repovisible", 0]);
+        assert.equal(client.openRepository(), false);
+    }
+    state = { ...readyState, repository: { gitHubUrl: "https://github.com/other/repo" } };
+    await client.refreshState(); client.openRepository();
+    assert.deepEqual(lastEvent(events, "repourl"), ["repourl", "https://github.com/other/repo"]);
+    client.disconnect();
+    assert.deepEqual(lastEvent(events, "repovisible"), ["repovisible", 0]);
+    assert.equal(client.openRepository(), false);
+});
 const changedPreview = { count: 1, files: [{ state: " M", path: "Dub/Set.als" }] };
 function lastEvent(events, kind) { return events.filter(e => e[0] === kind).at(-1); }
 
@@ -163,7 +276,7 @@ test("patch wires every action to Node, passes audio through and has no project 
     const patch = JSON.parse(fs.readFileSync(path.join(__dirname, "Ableton Total Git.maxpat"))).patcher;
     const ids = new Set(patch.boxes.map(b => b.box.id));
     for (const { patchline: line } of patch.lines) assert(ids.has(line.source[0]) && ids.has(line.destination[0]));
-    for (const id of ["start", "init", "refresh", "push"])
+    for (const id of ["savelive", "init", "refresh", "push"])
         assert(patch.lines.some(l => l.patchline.source[0] === id + "cmd" && l.patchline.destination[0] === "node"));
     assert.equal(patch.lines.filter(l => l.patchline.source[0] === "audioin" && l.patchline.destination[0] === "audioout").length, 2);
     assert(!patch.boxes.some(({ box }) => ["project", "scope", "defaultscope"].includes(box.id)), "whole-library UI has no project selectors");
@@ -196,6 +309,11 @@ test("patch wires every action to Node, passes audio through and has no project 
     }
     assert(patch.lines.some(l => l.patchline.source[0] === "descriptionclear" && l.patchline.destination[0] === "description"));
     assert(!patch.boxes.some(({ box }) => box.id === "stop"), "companion lifecycle is automatic");
+    assert(!patch.boxes.some(({ box }) => box.id === "start"), "folder input starts the companion automatically");
+    assert.equal(patch.boxes.find(({box}) => box.id === "init").box.text, "Initialise repo");
+    assert.equal(patch.boxes.find(({box}) => box.id === "savelive").box.filename, "save-button.js");
+    assert(patch.lines.some(({patchline}) => patchline.source[0] === "route" && patchline.source[1] === 23 && patchline.destination[0] === "savefinisheddefer"));
+    assert(patch.lines.some(({patchline}) => patchline.source[0] === "savecursorreset" && patchline.destination[0] === "savelive"));
 });
 test("startup preflight gates writes, reports failures and supports recovery", async () => {
     const requests = [], events = []; let available = false;
@@ -411,6 +529,38 @@ test("device startup with no Git on PATH reports repair guidance and keeps write
         fs.rmSync(root, { recursive: true, force: true });
     }
 });
+test("Save Live Set works without a companion, prevents duplicate requests and reports helper failures", async () => {
+    const { EventEmitter } = require("node:events");
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "AbletonGit-save-"));
+    const handlers = new Map(), launches = [], events = [];
+    const filename = path.join(__dirname, "device.js"), localRequire = createRequire(filename);
+    const load = new Function("require", "__dirname", "module", "exports", fs.readFileSync(filename, "utf8"));
+    load(name => name === "max-api" ? { addHandler: (name, handler) => handlers.set(name, handler), outlet: (...args) => events.push(args), post() {} } :
+        name === "child_process" ? { spawn: (...args) => { const child = new EventEmitter(); child.stderr = new EventEmitter(); child.kill = () => {}; launches.push({args,child}); return child; } } :
+        name === "./preferences" ? testPreferences(root) : name === "./live-save-state" ? {
+            LiveSaveState: class { constructor(_directory, callback) { this.callback = callback; } start() { this.callback({ known: true, modified: true }); } stop() { this.callback({ known: false, modified: false }); } }
+        } : localRequire(name), __dirname, { exports: {} }, {});
+    try {
+        assert.equal(await handlers.get("savelive")(), false, "unknown modification state blocks Save");
+        assert.equal(launches.length, 0);
+        await handlers.get("visible")(1);
+        const first = handlers.get("savelive")();
+        assert.equal(await handlers.get("savelive")(), false);
+        assert(!events.some(event => event[0] === "savefinished"), "blocked duplicate must not signal completion during Save");
+        assert.equal(launches.length, 1, "one Save helper despite repeated click");
+        launches[0].child.stderr.emit("data", Buffer.from("Could not focus Live")); launches[0].child.emit("exit", 1);
+        assert.equal(await first, false); assert.equal(lastEvent(events,"status")[1], "Could not focus Live");
+        assert.equal(events.filter(event => event[0] === "savefinished").length, 1, "failed Save still restores the cursor");
+        const second = handlers.get("savelive")(); launches[1].child.emit("exit", 0);
+        assert.equal(await second, true); assert(lastEvent(events,"status")[1].startsWith("Save requested"));
+        assert(!events.some(event => event[0] === "busy"), "Save never starts the device's busy UI");
+        assert.equal(events.filter(event => event[0] === "savefinished").length, 2, "successful Save signals cursor reset after helper exit");
+        assert(launches.every(x => x.args[2].shell === false && x.args[2].windowsHide === true));
+        await handlers.get("visible")(0);
+        assert.equal(await handlers.get("savelive")(), false, "hidden/unknown state blocks Save");
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 test("Git status opens a visible persistent PowerShell with the library as a literal working folder", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "AbletonGit-shell-"));
     const library = path.join(root, "Music $() ; ' space"); fs.mkdirSync(library);

@@ -5,3 +5,9 @@
 TestResults/
 artifacts/
 local-fixtures/
+.DS_Store
+Thumbs.db
+[dD][eE][sS][kK][tT][oO][pP].[iI][nN][iI]
+.env
+.env.*
+!.env.example

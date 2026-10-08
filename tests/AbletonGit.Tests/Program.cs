@@ -26,6 +26,100 @@ var git = new GitRepository(runner);
 var reader = new AlsReader();
 CompanionService Service(IProcessRunner? process = null) => new(new GitRepository(process ?? runner), reader, new(), NullLogger<CompanionService>.Instance);
 
+Test("GitHub remote URLs become browser links without transport syntax or credentials", () =>
+{
+    foreach (var remote in new[] { "https://github.com/musician/library.git", "git@github.com:musician/library.git",
+        "ssh://git@github.com/musician/library.git", "ssh://git@github.com:22/musician/library.git",
+        "https://user:secret@github.com/musician/library.git/", "https://GITHUB.COM/musician/library" })
+        Check(GitHubRemote.BrowserUrl(remote) == "https://github.com/musician/library", "normalised " + remote.Split('@').Last());
+    foreach (var remote in new string?[] { null, "", "/tmp/local.git", "https://gitlab.com/musician/library.git",
+        "https://github.com.evil.test/musician/library.git", "https://github.com/musician/library.git?token=secret",
+        "https://github.com/musician/library/tree/main", "file://github.com/musician/library.git",
+        "git@github.com:musician/library;command.git", "https://github.com:8080/musician/library.git" })
+        Check(GitHubRemote.BrowserUrl(remote) is null, "unsupported remote hidden");
+    return Task.CompletedTask;
+});
+Test("Init validates optional GitHub URLs before repository creation", async () =>
+{
+    using var p = new Fixture();
+    Check(GitHubRemote.CloneUrl("https://github.com/musician/library") == "https://github.com/musician/library.git", "page URL accepted");
+    Check(GitHubRemote.CloneUrl("ssh://git@github.com/musician/library.git") == "git@github.com:musician/library.git", "SSH authentication retained");
+    Check(GitHubRemote.CloneUrl("  ") is null, "blank remains local");
+    foreach (var url in new[] { "https://gitlab.com/team/repo", "https://github.com/team/repo/tree/main", "https://token@github.com/team/repo", "git@github.com:team/repo;command" })
+        await Throws<CompanionException>(() => Service().InitAsync(p.Root, default, url));
+    Check(!Directory.Exists(Path.Combine(p.Root, ".git")), "invalid URLs do not initialise Git");
+});
+Test("Init connects GitHub without network access and first Push sets tracking", async () =>
+{
+    using var p = new Fixture(); var library = new LibraryService(git, reader, new());
+    await library.InitAsync(p.Root, default, "https://github.com/musician/library");
+    await p.Identity(runner);
+    Check((await runner.RunAsync("git", ["remote", "get-url", "origin"], p.Root)).Output.Trim() == "https://github.com/musician/library.git", "origin configured");
+    var initial = await library.UiStateAsync(p.Root, default);
+    Check(initial.Initialized && !initial.CanPush && initial.Repository.CanInitialPush && initial.Repository.GitHubUrl == "https://github.com/musician/library", "ready for first commit and Repo link");
+    // Substitute a local bare destination to verify upload/tracking without contacting GitHub.
+    var remote = Path.Combine(p.Root, "remote.git");
+    await p.Git(runner, "remote", "set-url", "origin", remote);
+    // Keep the disposable test remote outside the library scan.
+    await File.AppendAllTextAsync(Path.Combine(p.Root, ".gitignore"), "\nremote.git/\n");
+    await library.SnapshotAsync(p.Root, "First library commit", false, default);
+    Check((await library.UiStateAsync(p.Root, default)).CanPush, "first upload enabled without an existing remote branch");
+    var localHash = (await git.StateAsync(p.Root, default)).LastSnapshot!.Hash;
+    await Throws<CompanionException>(() => library.PushAsync(p.Root, default));
+    var failedPush = await library.UiStateAsync(p.Root, default);
+    Check(failedPush.CanPush && failedPush.Repository.LastSnapshot!.Hash == localHash, "failed first Push keeps commit and retry enabled");
+    await p.Git(runner, "init", "--bare", remote);
+    await library.PushAsync(p.Root, default);
+    var pushed = await library.UiStateAsync(p.Root, default);
+    Check(pushed.Repository.Upstream == "origin/main" && pushed.Repository.Ahead == 0 && !pushed.Repository.CanInitialPush && !pushed.CanPush, "first Push establishes tracking and clears pending state");
+});
+Test("Init preserves conflicting remotes and leaves blank initialization local", async () =>
+{
+    using var p = new Fixture(); var service = Service();
+    await service.InitAsync(p.Root, default);
+    Check((await git.StateAsync(p.Root, default)).Remote is null, "blank Init creates no remote");
+    await p.Git(runner, "remote", "add", "origin", "git@github.com:other/existing.git");
+    await Throws<CompanionException>(() => service.InitAsync(p.Root, default, "https://github.com/musician/library"));
+    Check((await runner.RunAsync("git", ["remote", "get-url", "origin"], p.Root)).Output.Trim() == "git@github.com:other/existing.git", "origin unchanged");
+    Check(!(await git.StateAsync(p.Root, default)).CanInitialPush, "conflicting setup does not enable a new upload");
+});
+Test("Init API accepts optional remote JSON and empty bodies", async () =>
+{
+    foreach (var all in new[] { false, true })
+    {
+        using var p = new Fixture(); var token = new string('A', 64); var app = ApiHost.Create(p.Root, token, 0, all);
+        await app.StartAsync();
+        try
+        {
+            using var client = new HttpClient { BaseAddress = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
+            client.DefaultRequestHeaders.Add("X-AbletonGit-Token", token);
+            Check((await client.PostAsJsonAsync("/api/init", new { remoteUrl = "https://github.com/team/repo/tree/main" })).StatusCode == HttpStatusCode.BadRequest, "invalid URL rejected");
+            Check(!Directory.Exists(Path.Combine(p.Root, ".git")), "API validates before initialization");
+            Check((await client.PostAsync("/api/init", null)).IsSuccessStatusCode, "legacy empty-body Init supported");
+            Check((await client.PostAsJsonAsync("/api/init", new { remoteUrl = "git@github.com:team/repo.git" })).IsSuccessStatusCode, "optional remote connected");
+            var state = await client.GetFromJsonAsync<CompanionUiState>("/api/ui-state");
+            Check(state!.Initialized && state.Repository.GitHubUrl == "https://github.com/team/repo", "canonical URL returned in UI state");
+        }
+        finally { await app.StopAsync(); await app.DisposeAsync(); }
+    }
+});
+Test("repository link follows branch remote and push URL with origin fallback", async () =>
+{
+    using var p = new Fixture();
+    await git.InitializeAsync(p.Root, default);
+    await runner.RunAsync("git", ["remote", "add", "origin", "git@github.com:musician/library.git"], p.Root, default);
+    Check((await git.StateAsync(p.Root, default)).GitHubUrl == "https://github.com/musician/library", "origin before first commit");
+    await runner.RunAsync("git", ["remote", "set-url", "--push", "origin", "https://github.com/musician/uploads.git"], p.Root, default);
+    Check((await git.StateAsync(p.Root, default)).GitHubUrl == "https://github.com/musician/uploads", "push URL matches destination");
+    await runner.RunAsync("git", ["remote", "add", "publishing", "ssh://git@github.com/team/releases.git"], p.Root, default);
+    await runner.RunAsync("git", ["config", "branch.main.remote", "publishing"], p.Root, default);
+    Check((await git.StateAsync(p.Root, default)).GitHubUrl == "https://github.com/team/releases", "branch remote preferred");
+    await runner.RunAsync("git", ["remote", "set-url", "publishing", "https://gitlab.com/team/releases.git"], p.Root, default);
+    Check((await git.StateAsync(p.Root, default)).GitHubUrl is null, "non-GitHub destination does not link to unrelated origin");
+    await runner.RunAsync("git", ["remote", "remove", "publishing"], p.Root, default);
+    Check((await git.StateAsync(p.Root, default)).GitHubUrl == "https://github.com/musician/uploads", "removed branch remote falls back to origin");
+});
+
 Test("tool preflight reports missing/nonzero executables and propagates cancellation", async () =>
 {
     using var p = new Fixture();

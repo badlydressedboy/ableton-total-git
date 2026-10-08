@@ -46,4 +46,21 @@ function gitStatusLaunch(root, platform = process.platform, env = process.env) {
     throw new Error("Git status supports Windows and macOS.");
 }
 
-module.exports = { normalizeLibraryPath, preferencesFile, companionExecutable, gitEnvironment, gitStatusLaunch };
+function saveLiveSetLaunch(directory, platform = process.platform, env = process.env, nodePid = process.pid) {
+    const options = { shell: false, windowsHide: true, stdio: ["ignore", "ignore", "pipe"] };
+    if (platform === "win32") return {
+        file: path.win32.join(env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+        args: ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path.join(directory, "save-live-set.ps1"), "-DeviceNodePid", String(nodePid)], options
+    };
+    if (platform === "darwin") return { file: "/usr/bin/osascript", args: [path.join(directory, "save-live-set.applescript")], options };
+    throw new Error("Save Live Set supports Windows and macOS.");
+}
+
+function watchLiveSetLaunch(directory, platform = process.platform, env = process.env, nodePid = process.pid) {
+    const launch = saveLiveSetLaunch(directory, platform, env, nodePid);
+    if (platform === "win32") launch.args.push("-Watch");
+    else launch.args = [path.join(directory, "watch-live-set.applescript")];
+    launch.options.stdio = ["ignore", "pipe", "pipe"];
+    return launch;
+}
+module.exports = { normalizeLibraryPath, preferencesFile, companionExecutable, gitEnvironment, gitStatusLaunch, saveLiveSetLaunch, watchLiveSetLaunch };

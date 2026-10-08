@@ -51,6 +51,7 @@ class Client {
         this.refreshPromise = null;
         this.scanAllowed = () => true;
         this.selectionVersion = 0;
+        this.initPromptToken = null;
         this.updateControls();
     }
     updateControls() {
@@ -66,6 +67,7 @@ class Client {
             snapshotenabled: ready && this.repositoryState?.initialized === true && this.preview?.count > 0 && this.validDescription(),
             refreshenabled: this.token && !this.busy
         };
+        states.repovisible = Boolean(this.repositoryUrl());
         // Idle polling retains the last known state. Explicit actions wait for any pending read.
         this.controlValues ||= {};
         for (const [kind, enabled] of Object.entries(states)) {
@@ -74,15 +76,28 @@ class Client {
         }
     }
     setRunning(value) { this.running = value; this.updateControls(); }
+    repositoryUrl() {
+        const url = this.repositoryState?.repository?.gitHubUrl;
+        return this.token && this.repositoryState?.initialized === true && typeof url === "string" &&
+            /^https:\/\/github\.com\/[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9_.-]+$/.test(url) &&
+            ![".", ".."].includes(url.split("/").at(-1)) ? url : null;
+    }
+    openRepository() {
+        const url = this.repositoryUrl();
+        if (!url) return false;
+        this.emit("repourl", url);
+        return true;
+    }
     validDescription() { return Array.from(this.message.trim()).length >= 4; }
     setDescription(value) {
         if (this.busy) return;
         this.message = String(value); this.updateControls();
     }
     disconnect() {
+        this.initPromptToken = null;
         this.token = null; this.toolsReady = false; this.running = false;
         this.repositoryState = null; this.preview = null; this.selectionVersion++;
-        this.showPreview([], "Start the companion to preview files."); this.updateControls();
+        this.showPreview([], "Waiting for the companion to preview files."); this.updateControls();
     }
     showPreview(files, summary) {
         const signature = JSON.stringify([files, summary]);
@@ -148,11 +163,11 @@ class Client {
     }
     invalidatePreview() {
         this.selectionVersion++; this.preview = null;
-        this.showPreview([], this.token ? "Checking files..." : "Start the companion to preview files."); this.updateControls();
+        this.showPreview([], this.token ? "Checking files..." : "Waiting for the companion to preview files."); this.updateControls();
         return this.refreshState().catch(error => { this.emit("detail", "Preview unavailable; use Refresh library."); this.emit("console", error.message); });
     }
     requireTools() {
-        if (!this.token) throw new Error("Start the companion first.");
+        if (!this.token) throw new Error("Enter a valid library folder and press Enter or Tab.");
         if (!this.toolsReady) throw new Error("Git and Git LFS must pass the startup check. Use Refresh library to check again.");
     }
     async checkTools() {
@@ -264,14 +279,28 @@ class Client {
             await this.refreshAfterOperation();
         });
     }
-    init() {
+    requestInitialization() {
+        return this.run(async () => {
+            this.requireTools();
+            await this.refreshState();
+            if (!this.repositoryState?.canInitialize) throw new Error("The library is already initialised, or this folder is not the repository root.");
+            this.initPromptToken = this.token;
+            this.emit("initdialog");
+        });
+    }
+    confirmInitialization(remoteUrl = "") {
+        if (!this.initPromptToken || this.initPromptToken !== this.token) return Promise.resolve(false);
+        this.initPromptToken = null;
+        return this.init(remoteUrl);
+    }
+    init(remoteUrl = "") {
         return this.run(async () => {
             this.requireTools();
             await this.refreshState();
             if (!this.repositoryState?.canInitialize) throw new Error("The library is already initialised, or this folder is not the repository root.");
             this.emit("status", "Initialising library and Git LFS...");
-            await this.transport("POST", "/api/init");
-            this.emit("status", "Library initialised. Review the files and Push.");
+            await this.transport("POST", "/api/init", { remoteUrl: String(remoteUrl).trim() || null });
+            this.emit("status", remoteUrl.trim() ? "Library initialised with GitHub remote. Review files and Push." : "Library initialised. Review the files and Push.");
             await this.refreshAfterOperation();
         });
     }

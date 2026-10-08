@@ -18,6 +18,7 @@ public sealed record SnapshotRequest(string Message, bool Push = false, string? 
 }
 public static class ApiHost
 {
+    public sealed record InitRequest(string? RemoteUrl = null);
     public static WebApplication Create(string path, string token, int port = 17831, bool all = false)
     {
         if (string.IsNullOrWhiteSpace(token) || token.Length < 32) throw new ArgumentException("A strong local client token is required.", nameof(token));
@@ -54,7 +55,7 @@ public static class ApiHost
         if (all)
         {
             app.MapGet("/api/projects", (LibraryService s) => new { all = true, projects = s.Projects(path).Select(p => new { path = p, name = p }) });
-            app.MapPost("/api/init", (LibraryService s, CancellationToken ct) => s.InitAsync(path, ct));
+            app.MapPost("/api/init", (InitRequest? request, LibraryService s, CancellationToken ct) => s.InitAsync(path, ct, request?.RemoteUrl));
             app.MapGet("/api/status", (LibraryService s, CancellationToken ct) => s.StatusAsync(path, ct));
             app.MapGet("/api/ui-state", (LibraryService s, CancellationToken ct) => s.UiStateAsync(path, ct));
             app.MapGet("/api/preview", (string scope, string? project, LibraryService s, CancellationToken ct) =>
@@ -76,7 +77,7 @@ public static class ApiHost
             return app;
         }
         app.MapGet("/api/projects", () => new { all = false, projects = new[] { new { path = ".", name = Path.GetFileName(ProjectDiscovery.Discover(path).Root) } } });
-        app.MapPost("/api/init", (CompanionService s, CancellationToken ct) => s.InitAsync(path, ct));
+        app.MapPost("/api/init", (InitRequest? request, CompanionService s, CancellationToken ct) => s.InitAsync(path, ct, request?.RemoteUrl));
         app.MapGet("/api/status", (CompanionService s, CancellationToken ct) => s.StatusAsync(path, ct));
         app.MapGet("/api/ui-state", (CompanionService s, CancellationToken ct) => s.UiStateAsync(path, ct));
         app.MapGet("/api/preview", (string scope, string? project, CompanionService s, CancellationToken ct) =>

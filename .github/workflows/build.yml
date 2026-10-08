@@ -28,7 +28,7 @@ jobs:
       - run: dotnet build AbletonGit.sln -c Release --no-restore
       - run: dotnet run --project tests/AbletonGit.Tests -c Release --no-build --no-restore
       - run: node max-for-live/package.js
-      - run: node --test max-for-live/client.test.js max-for-live/platform.test.js
+      - run: node --test max-for-live/client.test.js max-for-live/platform.test.js max-for-live/file-list.test.js
       - run: node max-for-live/package.js --runtime ${{ matrix.runtime }}
       - uses: actions/upload-artifact@v4
         with:

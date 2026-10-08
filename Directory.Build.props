@@ -5,5 +5,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
+    <Product>Ableton Total Git</Product>
+    <Authors>Alister McPherson</Authors>
+    <RepositoryUrl>https://github.com/badlydressedboy/ableton-total-git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/badlydressedboy/ableton-total-git</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>ableton;max-for-live;git;git-lfs;music;version-control</PackageTags>
   </PropertyGroup>
 </Project>

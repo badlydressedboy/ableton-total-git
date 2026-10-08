@@ -26,19 +26,18 @@ Ableton Projects/
     Ableton Project Info/
 ```
 
-From the companion workspace:
+After installing the CLI:
 
 ```powershell
-$tool = "C:\Git\ableton-total-git\artifacts\cli\abletongit.exe"
 $library = "D:\Music\Ableton Projects"
-& $tool doctor --all --path $library
-& $tool init --all --path $library
-& $tool analyse --all --path $library
-& $tool diff --all --path $library
-& $tool snapshot "Saved changes across my projects" --all --path $library
-& $tool status --all --path $library
-& $tool history --all --path $library
-& $tool push --all --path $library
+abletongit doctor --all --path $library
+abletongit init --all --path $library
+abletongit analyse --all --path $library
+abletongit diff --all --path $library
+abletongit snapshot "Saved changes across my projects" --all --path $library
+abletongit status --all --path $library
+abletongit history --all --path $library
+abletongit push --all --path $library
 ```
 
 Save all modified Sets in Live first. Collect All and Save still applies to each project. Multiple Sets per project are all analysed automatically in this mode. Identically named Sets in different folders get separate metadata and diffs. The parent folder must be the repository root. Local operations do not need a remote; Push uses the parent's configured tracking branch.
