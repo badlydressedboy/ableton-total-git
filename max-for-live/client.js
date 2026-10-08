@@ -49,6 +49,7 @@ class Client {
         this.preview = null;
         this.previewLoading = false;
         this.refreshPromise = null;
+        this.scanAllowed = () => true;
         this.selectionVersion = 0;
         this.updateControls();
     }
@@ -101,6 +102,7 @@ class Client {
         this.emit("filesummary", summary);
     }
     refreshState() {
+        if (!this.scanAllowed()) return Promise.resolve();
         if (this.refreshPromise) return this.refreshPromise;
         if (!this.token || !this.toolsReady) return Promise.resolve();
         this.previewLoading = true; this.updateControls();
@@ -111,7 +113,7 @@ class Client {
                 version = this.selectionVersion;
                 const scope = this.libraryOnly ? "all" : this.scope, project = this.project;
                 const state = await this.transport("GET", "/api/ui-state");
-                if (this.token !== token) return;
+                if (this.token !== token || !this.scanAllowed()) return;
                 this.repositoryState = state;
                 let preview = null;
                 let summary = "Choose a project to preview files.";
@@ -121,7 +123,7 @@ class Client {
                     preview = await this.transport("GET", "/api/preview?scope=" + scope + (scope === "project" ? "&project=" + encodeURIComponent(project) : ""));
                     summary = `${preview.count} ${preview.count === 1 ? "file" : "files"} will be committed.`;
                 }
-                if (this.token !== token) return;
+                if (this.token !== token || !this.scanAllowed()) return;
                 if (version === this.selectionVersion) {
                     this.preview = preview;
                     this.showPreview(preview?.files || [], summary);
@@ -196,6 +198,7 @@ class Client {
         finally { this.busy = false; this.emit("busy", 0); this.updateControls(); }
     }
     async refresh() {
+        if (!this.scanAllowed()) return;
         this.previewSignature = null; // A manual Refresh also repaints a newly loaded/reconnected Max list.
         const result = await this.transport("GET", "/api/projects");
         if (this.libraryOnly && !result.all) throw new Error("This device requires a whole-library companion.");

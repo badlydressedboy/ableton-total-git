@@ -9,6 +9,7 @@
       "modernui": 1
     },
     "classnamespace": "box",
+    "title": "Ableton Total Git",
     "rect": [
       0,
       0,
@@ -28,10 +29,10 @@
           "patching_rect": [
             8,
             200,
-            90,
+            150,
             20
           ],
-          "text": "ABLETON GIT"
+          "text": "ABLETON TOTAL GIT"
         }
       },
       {
@@ -66,6 +67,30 @@
             440,
             25
           ],
+          "fontsize": 12,
+          "lines": 1,
+          "wordwrap": 0,
+          "autoscroll": 1,
+          "border": 5,
+          "rounded": 5,
+          "bgcolor": [
+            0.24,
+            0.24,
+            0.24,
+            1
+          ],
+          "bordercolor": [
+            0.24,
+            0.24,
+            0.24,
+            1
+          ],
+          "textcolor": [
+            0.94,
+            0.94,
+            0.94,
+            1
+          ],
           "numinlets": 1,
           "numoutlets": 4,
           "parameter_enable": 0,
@@ -94,6 +119,30 @@
             230,
             25
           ],
+          "fontsize": 12,
+          "lines": 1,
+          "wordwrap": 0,
+          "autoscroll": 1,
+          "border": 5,
+          "rounded": 5,
+          "bgcolor": [
+            0.24,
+            0.24,
+            0.24,
+            1
+          ],
+          "bordercolor": [
+            0.24,
+            0.24,
+            0.24,
+            1
+          ],
+          "textcolor": [
+            0.94,
+            0.94,
+            0.94,
+            1
+          ],
           "numinlets": 1,
           "numoutlets": 4,
           "parameter_enable": 0,
@@ -108,7 +157,7 @@
             25
           ],
           "annotation_name": "Commit Comment",
-          "annotation": "Comment recorded with the next commit. Enter at least four characters after trimming surrounding spaces to commit changed files. The editable default is Raw Creativity and returns after a successful commit. Editing is locked while an operation runs. Uploading existing commits does not require a new comment."
+          "annotation": "Comment recorded with the next commit. Click the default Raw Creativity text to select it all for easy replacement. Custom comments retain normal cursor behavior. Enter at least four characters after trimming surrounding spaces to commit changed files. Raw Creativity returns after a successful commit. Editing is locked while an operation runs. Uploading existing commits does not require a new comment."
         }
       },
       {
@@ -130,7 +179,7 @@
             20
           ],
           "annotation_name": "Commit Comment",
-          "annotation": "Comment recorded with the next commit. Enter at least four characters after trimming surrounding spaces to commit changed files. The editable default is Raw Creativity and returns after a successful commit. Editing is locked while an operation runs. Uploading existing commits does not require a new comment."
+          "annotation": "Comment recorded with the next commit. Click the default Raw Creativity text to select it all for easy replacement. Custom comments retain normal cursor behavior. Enter at least four characters after trimming surrounding spaces to commit changed files. Raw Creativity returns after a successful commit. Editing is locked while an operation runs. Uploading existing commits does not require a new comment."
         }
       },
       {
@@ -202,45 +251,18 @@
       {
         "box": {
           "id": "filelist",
-          "maxclass": "jit.cellblock",
+          "maxclass": "jsui",
           "patching_rect": [
             555,
             22,
             365,
             140
           ],
-          "cols": 2,
-          "rows": 1,
-          "rowheight": 14,
-          "colwidth": 75,
-          "hscroll": 1,
-          "vscroll": 1,
-          "readonly": 1,
-          "selmode": 0,
-          "neverdirty": 1,
-          "datadirty": 0,
-          "fontsize": 11,
-          "numinlets": 2,
-          "numoutlets": 4,
-          "bgcolor": [
-            0.12,
-            0.12,
-            0.12,
-            1
-          ],
-          "fgcolor": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "textcolor": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "grid": 0,
+          "filename": "file-list.js",
+          "border": 0,
+          "parameter_enable": 0,
+          "numinlets": 1,
+          "numoutlets": 0,
           "presentation": 1,
           "presentation_rect": [
             555,
@@ -249,7 +271,7 @@
             140
           ],
           "annotation_name": "Files to commit",
-          "annotation": "Read-only preview of eligible changed files across the whole library, including generated .abletongit reports. The left column shows Git change status. Scroll vertically for more files and horizontally for long names. Preview does not commit files. Save in Live before reviewing or pushing."
+          "annotation": "Read-only preview of eligible changed files across the whole library, including generated .abletongit reports. The left column shows Git change status. Drag the slim scrollbars, click their tracks, or drag the list to scroll vertically and horizontally. Scrollbars appear only when needed. Preview does not commit files. Save in Live before reviewing or pushing."
         }
       },
       {
@@ -319,6 +341,33 @@
       },
       {
         "box": {
+          "id": "visibilityprobe",
+          "maxclass": "jsui",
+          "patching_rect": [
+            0,
+            0,
+            930,
+            1
+          ],
+          "filename": "visibility.js",
+          "presentation": 1,
+          "presentation_rect": [
+            0,
+            0,
+            930,
+            1
+          ],
+          "border": 0,
+          "ignoreclick": 1,
+          "parameter_enable": 0,
+          "numinlets": 1,
+          "numoutlets": 1,
+          "annotation_name": "Device visibility",
+          "annotation": "Background file scanning pauses while this device is hidden and resumes when it is shown."
+        }
+      },
+      {
+        "box": {
           "id": "runtimeconsole",
           "maxclass": "newobj",
           "patching_rect": [
@@ -340,7 +389,7 @@
             250,
             22
           ],
-          "text": "route status warning busy projectclear projectitem projectselect detail mutations startenabled stopenabled initenabled pushenabled snapshotenabled refreshenabled filelist filesummary descriptionclear libraryrestore scopeselect"
+          "text": "route status warning busy projectclear projectitem projectselect detail mutations startenabled stopenabled initenabled pushenabled snapshotenabled refreshenabled filelist filesummary descriptionclear libraryrestore scopeselect visibilityrequest"
         }
       },
       {
@@ -527,6 +576,188 @@
       },
       {
         "box": {
+          "id": "commentclick",
+          "maxclass": "newobj",
+          "patching_rect": [
+            10,
+            960,
+            250,
+            22
+          ],
+          "text": "t b"
+        }
+      },
+      {
+        "box": {
+          "id": "commentwaiton",
+          "maxclass": "message",
+          "patching_rect": [
+            10,
+            1040,
+            35,
+            22
+          ],
+          "text": "1"
+        }
+      },
+      {
+        "box": {
+          "id": "commentwait",
+          "maxclass": "newobj",
+          "patching_rect": [
+            270,
+            1040,
+            250,
+            22
+          ],
+          "text": "qmetro 20"
+        }
+      },
+      {
+        "box": {
+          "id": "commentmouseup",
+          "maxclass": "newobj",
+          "patching_rect": [
+            540,
+            1040,
+            250,
+            22
+          ],
+          "text": "mousefilter"
+        }
+      },
+      {
+        "box": {
+          "id": "commentreleased",
+          "maxclass": "newobj",
+          "patching_rect": [
+            800,
+            1040,
+            250,
+            22
+          ],
+          "text": "t b b"
+        }
+      },
+      {
+        "box": {
+          "id": "commentwaitoff",
+          "maxclass": "message",
+          "patching_rect": [
+            1070,
+            1040,
+            35,
+            22
+          ],
+          "text": "0"
+        }
+      },
+      {
+        "box": {
+          "id": "commentclickdefer",
+          "maxclass": "newobj",
+          "patching_rect": [
+            270,
+            960,
+            250,
+            22
+          ],
+          "text": "deferlow"
+        }
+      },
+      {
+        "box": {
+          "id": "commentread",
+          "maxclass": "newobj",
+          "patching_rect": [
+            540,
+            960,
+            250,
+            22
+          ],
+          "text": "t b b b"
+        }
+      },
+      {
+        "box": {
+          "id": "commentgateon",
+          "maxclass": "message",
+          "patching_rect": [
+            800,
+            960,
+            35,
+            22
+          ],
+          "text": "1"
+        }
+      },
+      {
+        "box": {
+          "id": "commentgateoff",
+          "maxclass": "message",
+          "patching_rect": [
+            840,
+            960,
+            35,
+            22
+          ],
+          "text": "0"
+        }
+      },
+      {
+        "box": {
+          "id": "commentdefault",
+          "maxclass": "newobj",
+          "patching_rect": [
+            10,
+            1000,
+            250,
+            22
+          ],
+          "text": "sel \"Raw Creativity\""
+        }
+      },
+      {
+        "box": {
+          "id": "commenttext",
+          "maxclass": "newobj",
+          "patching_rect": [
+            10,
+            1080,
+            250,
+            22
+          ],
+          "text": "tosymbol"
+        }
+      },
+      {
+        "box": {
+          "id": "commentgate",
+          "maxclass": "newobj",
+          "patching_rect": [
+            270,
+            1000,
+            250,
+            22
+          ],
+          "text": "gate 1 0"
+        }
+      },
+      {
+        "box": {
+          "id": "commentselect",
+          "maxclass": "message",
+          "patching_rect": [
+            540,
+            1000,
+            70,
+            22
+          ],
+          "text": "select"
+        }
+      },
+      {
+        "box": {
           "id": "libraryrestore",
           "maxclass": "newobj",
           "patching_rect": [
@@ -641,7 +872,7 @@
           "maxclass": "message",
           "patching_rect": [
             85,
-            482,
+            572,
             100,
             22
           ],
@@ -699,7 +930,7 @@
           "maxclass": "message",
           "patching_rect": [
             225,
-            500,
+            590,
             100,
             22
           ],
@@ -757,7 +988,7 @@
           "maxclass": "message",
           "patching_rect": [
             365,
-            518,
+            608,
             100,
             22
           ],
@@ -815,7 +1046,7 @@
           "maxclass": "message",
           "patching_rect": [
             365,
-            536,
+            626,
             100,
             22
           ],
@@ -886,7 +1117,7 @@
           "maxclass": "message",
           "patching_rect": [
             450,
-            560,
+            650,
             100,
             22
           ],
@@ -944,19 +1175,6 @@
           ],
           "text": "loadbang"
         }
-      },
-      {
-        "box": {
-          "id": "filecolumns",
-          "maxclass": "message",
-          "patching_rect": [
-            930,
-            900,
-            230,
-            22
-          ],
-          "text": "col 0 width 45, col 1 width 850"
-        }
       }
     ],
     "lines": [
@@ -1011,11 +1229,35 @@
       {
         "patchline": {
           "source": [
+            "visibilityprobe",
+            0
+          ],
+          "destination": [
+            "node",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
             "node",
             1
           ],
           "destination": [
             "runtimeconsole",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "route",
+            19
+          ],
+          "destination": [
+            "visibilityprobe",
             0
           ]
         }
@@ -1264,6 +1506,234 @@
         "patchline": {
           "source": [
             "descriptionbang",
+            0
+          ],
+          "destination": [
+            "description",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "description",
+            2
+          ],
+          "destination": [
+            "commentclick",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentclick",
+            0
+          ],
+          "destination": [
+            "commentwaiton",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentwaiton",
+            0
+          ],
+          "destination": [
+            "commentwait",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentwait",
+            0
+          ],
+          "destination": [
+            "commentmouseup",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentmouseup",
+            0
+          ],
+          "destination": [
+            "commentreleased",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentreleased",
+            1
+          ],
+          "destination": [
+            "commentwaitoff",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentwaitoff",
+            0
+          ],
+          "destination": [
+            "commentwait",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentreleased",
+            0
+          ],
+          "destination": [
+            "commentclickdefer",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentclickdefer",
+            0
+          ],
+          "destination": [
+            "commentread",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentread",
+            2
+          ],
+          "destination": [
+            "commentgateon",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentgateon",
+            0
+          ],
+          "destination": [
+            "commentgate",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentread",
+            1
+          ],
+          "destination": [
+            "description",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentread",
+            0
+          ],
+          "destination": [
+            "commentgateoff",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentgateoff",
+            0
+          ],
+          "destination": [
+            "commentgate",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "descriptionroute",
+            0
+          ],
+          "destination": [
+            "commenttext",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commenttext",
+            0
+          ],
+          "destination": [
+            "commentdefault",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentdefault",
+            0
+          ],
+          "destination": [
+            "commentgate",
+            1
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentgate",
+            0
+          ],
+          "destination": [
+            "commentselect",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "commentselect",
             0
           ],
           "destination": [
@@ -1751,30 +2221,6 @@
             1
           ]
         }
-      },
-      {
-        "patchline": {
-          "source": [
-            "defaults",
-            0
-          ],
-          "destination": [
-            "filecolumns",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "filecolumns",
-            0
-          ],
-          "destination": [
-            "filelist",
-            0
-          ]
-        }
       }
     ],
     "dependency_cache": [
@@ -1798,6 +2244,18 @@
       },
       {
         "name": "platform.js",
+        "bootpath": ".",
+        "type": "TEXT",
+        "implicit": 1
+      },
+      {
+        "name": "visibility.js",
+        "bootpath": ".",
+        "type": "TEXT",
+        "implicit": 1
+      },
+      {
+        "name": "file-list.js",
         "bootpath": ".",
         "type": "TEXT",
         "implicit": 1

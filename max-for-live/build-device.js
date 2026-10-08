@@ -32,6 +32,6 @@ function buildDevice(template, source, destination) {
 
 if (require.main === module) {
     require("./build-patch");
-    buildDevice(path.join(__dirname, "device-template.amxd"), path.join(__dirname, "Ableton Git.maxpat"), path.join(__dirname, "Ableton Git.amxd"));
+    buildDevice(path.join(__dirname, "device-template.amxd"), path.join(__dirname, "Ableton Total Git.maxpat"), path.join(__dirname, "Ableton Total Git.amxd"));
 }
 module.exports = { buildDevice };

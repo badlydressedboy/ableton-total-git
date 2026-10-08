@@ -22,6 +22,8 @@ const client = new Client((kind, ...values) => {
         const next = pendingLibrary; pendingLibrary = null;
         queueMicrotask(() => changeLibrary(next));
     }
+    if (kind === "busy" && Number(values[0]) === 0)
+        queueMicrotask(() => { if (scanPending) scanVisible(true); });
 }, undefined, 17831, true);
 const preferences = new Preferences();
 let library = "";
@@ -33,7 +35,56 @@ let pendingLibrary = null;
 let automaticStart = true;
 let stopping = false;
 let nextStart = 0;
+let visible = false;
+let scanPending = false;
+let scanPromise = null;
+client.scanAllowed = () => visible;
 function stopWatching() { if (libraryWatcher) libraryWatcher.close(); libraryWatcher = null; }
+function scanError(error) {
+    client.emit("detail", "Preview unavailable; use Refresh library.");
+    client.emit("console", error.message);
+}
+function startWatching() {
+    if (!visible || libraryWatcher || !child || !client.token || !client.toolsReady) return;
+    const owned = child;
+    try {
+        libraryWatcher = watchLibrary(path.resolve(library), () => {
+            if (child === owned) return scanVisible(true);
+        }, scanError, () => visible && !client.busy && !scanPromise && !client.refreshPromise);
+    } catch (error) { scanError(error); }
+}
+function scanVisible(includeProjects = false) {
+    if (!visible) return Promise.resolve();
+    if (client.busy || !client.token || !client.toolsReady) {
+        scanPending = true;
+        return Promise.resolve();
+    }
+    if (scanPromise) { scanPending ||= includeProjects; return scanPromise; }
+    scanPending = false;
+    startWatching();
+    scanPromise = (async () => {
+        if (includeProjects) await client.refresh();
+        if (visible) await client.refreshState();
+        if (includeProjects && visible && !client.busy)
+            client.emit("status", "Companion running. File preview is up to date.");
+    })().catch(scanError).finally(() => {
+        scanPromise = null;
+        if (visible && scanPending) scanVisible(true);
+    });
+    return scanPromise;
+}
+max.addHandler("visible", value => {
+    const next = Number(value) !== 0;
+    if (next === visible) return scanPromise || Promise.resolve();
+    visible = next;
+    if (!visible) {
+        stopWatching(); scanPending = false;
+        if (child && client.token && !client.busy)
+            client.emit("status", "Companion running. Scanning pauses while hidden.");
+        return Promise.resolve();
+    }
+    return scanVisible(true);
+});
 function validLibrary(value) {
     try { return Boolean(value && path.isAbsolute(value) && fs.statSync(value).isDirectory()); }
     catch { return false; }
@@ -138,20 +189,19 @@ async function launchCompanion() {
         client.token = token;
         let failure;
         for (let attempt = 0; attempt < 30; attempt++) {
-            try { await client.refresh(); failure = null; break; }
-            catch (error) { failure = error; await new Promise(resolve => setTimeout(resolve, 100)); }
+            try { await client.checkTools(); failure = null; break; }
+            catch (error) {
+                failure = error;
+                if (!["ECONNREFUSED", "ECONNRESET"].includes(error.code)) break;
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
         }
         if (failure) throw failure;
-        await client.checkTools();
+        // Tool preflight connects without enumerating project folders while hidden.
+        if (visible) await client.refresh();
         await client.refreshState();
-        const scanError = error => { client.emit("detail", "Auto-scan unavailable; polling continues."); client.emit("console", error.message); };
-        try {
-            libraryWatcher = watchLibrary(root, async () => {
-                if (child !== owned || !client.token || !client.toolsReady) return;
-                await client.refresh(); await client.refreshState();
-            }, scanError, () => !client.busy && !client.refreshPromise);
-        } catch (error) { scanError(error); }
-        client.emit("status", "Companion running. File preview is up to date.");
+        startWatching();
+        client.emit("status", visible ? "Companion running. File preview is up to date." : "Companion running. Scanning pauses while hidden.");
     } catch (error) {
         nextStart = Date.now() + 30000;
         stopWatching(); child = null; owned.kill(); client.disconnect(); throw error;
@@ -177,13 +227,12 @@ const stateTimer = setInterval(() => {
         startCompanion();
         return;
     }
-    if (!client.busy && client.token && client.toolsReady) client.refreshState().catch(error => {
-        client.emit("detail", "Preview unavailable; use Refresh library."); client.emit("console", error.message);
-    });
+    if (visible) scanVisible();
 }, 5000);
 stateTimer.unref();
 process.on("exit", () => { automaticStart = false; clearInterval(stateTimer); stopWatching(); if (child) child.kill(); });
 client.emit("libraryrestore", library);
 client.emit("descriptionclear");
+client.emit("visibilityrequest", "start");
 client.emit("status", library ? "Saved library folder loaded. Starting companion..." : "Enter library folder and press Enter to start.");
 module.exports.startup = library ? startCompanion() : Promise.resolve(false);

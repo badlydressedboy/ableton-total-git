@@ -10,6 +10,39 @@ const { createRequire } = require("node:module");
 const os = require("node:os");
 const zlib = require("node:zlib");
 const { Preferences } = require("./preferences");
+test("visibility probe reports drawing on the Task and goes hidden when drawing stops", () => {
+    const vm = require("node:vm");
+    const events = [];
+    let tick, redraws = 0, cancelled = 0;
+    const context = vm.createContext({
+        mgraphics: { init() {}, redraw() { redraws++; } },
+        Task: function (callback) { tick = callback; this.cancel = () => cancelled++; this.repeat = () => {}; },
+        outlet: (...values) => events.push(values)
+    });
+    vm.runInContext(fs.readFileSync(path.join(__dirname, "visibility.js"), "utf8"), context);
+    context.start(); tick();
+    assert.deepEqual(events.at(-1), [0, "visible", 0]);
+    context.paint();
+    assert.equal(events.length, 1, "paint never sends Node messages on the drawing stack");
+    tick(); assert.deepEqual(events.at(-1), [0, "visible", 1]);
+    tick(); assert.deepEqual(events.at(-1), [0, "visible", 0]);
+    context.paint(); tick(); assert.deepEqual(events.at(-1), [0, "visible", 1]);
+    context.notifydeleted(); assert.equal(cancelled, 2); assert(redraws > 0);
+});
+test("hiding during state refresh prevents the following file scan", async () => {
+    let visible = true, finish;
+    const calls = [];
+    const client = new Client(() => {}, async (_method, endpoint) => {
+        calls.push(endpoint);
+        return new Promise(resolve => { finish = resolve; });
+    }, 17831, true);
+    client.scanAllowed = () => visible;
+    client.token = "test"; client.toolsReady = true; client.all = true;
+    const refresh = client.refreshState();
+    visible = false; finish({ initialized: true }); await refresh;
+    await client.refreshState(); await client.refresh();
+    assert.deepEqual(calls, ["/api/ui-state"]);
+});
 test("library watcher queues saves behind operations, ignores metadata, and stops cleanly", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "AbletonGit-watch-"));
     fs.mkdirSync(path.join(root, "Project")); fs.mkdirSync(path.join(root, ".abletongit"));
@@ -127,7 +160,7 @@ test("real loopback transport uses token and reports structured server errors", 
     } finally { await new Promise(resolve => server.close(resolve)); }
 });
 test("patch wires every action to Node, passes audio through and has no project selectors", () => {
-    const patch = JSON.parse(fs.readFileSync(path.join(__dirname, "Ableton Git.maxpat"))).patcher;
+    const patch = JSON.parse(fs.readFileSync(path.join(__dirname, "Ableton Total Git.maxpat"))).patcher;
     const ids = new Set(patch.boxes.map(b => b.box.id));
     for (const { patchline: line } of patch.lines) assert(ids.has(line.source[0]) && ids.has(line.destination[0]));
     for (const id of ["start", "init", "refresh", "push"])
@@ -139,6 +172,9 @@ test("patch wires every action to Node, passes audio through and has no project 
     assert.equal(patch.boxes.find(b => b.box.id === "library").box.outputmode, 1, "path transported as one literal symbol");
     assert(patch.lines.some(l => l.patchline.source[0] === "node" && l.patchline.source[1] === 1 && l.patchline.destination[0] === "runtimeconsole"));
     assert(patch.lines.some(l => l.patchline.source[0] === "scriptstart" && l.patchline.destination[0] === "node"));
+    assert.equal(patch.boxes.find(b => b.box.id === "visibilityprobe").box.filename, "visibility.js");
+    assert(patch.lines.some(l => l.patchline.source[0] === "visibilityprobe" && l.patchline.destination[0] === "node"));
+    assert(patch.lines.some(l => l.patchline.source[0] === "route" && l.patchline.source[1] === 19 && l.patchline.destination[0] === "visibilityprobe"));
     assert.equal(patch.boxes.find(b => b.box.id === "deviceready").box.text, "live.thisdevice");
     assert.equal(patch.boxes.find(b => b.box.id === "node").box.text, "node.script device.js @autostart 0 @defer 1");
     for (const [from, to] of [["deviceready", "startonce"], ["startonce", "startdefer"], ["startdefer", "scriptstart"]])
@@ -150,8 +186,8 @@ test("patch wires every action to Node, passes audio through and has no project 
         assert(!patch.lines.some(l => l.patchline.source[0] === "active" && l.patchline.destination[0] === id));
     }
     const list = patch.boxes.find(b => b.box.id === "filelist").box;
-    assert.equal(list.maxclass, "jit.cellblock"); assert.equal(list.vscroll, 1); assert.equal(list.readonly, 1);
-    assert.deepEqual(list.fgcolor, [1, 1, 1, 1]); assert.deepEqual(list.textcolor, [1, 1, 1, 1]);
+    assert.equal(list.maxclass, "jsui"); assert.equal(list.filename, "file-list.js");
+    assert.equal(list.border, 0);
     assert(patch.lines.some(l => l.patchline.source[0] === "libraryrestore" && l.patchline.destination[0] === "library"));
     assert.equal(patch.devicewidth, 930);
     for (const { box } of patch.boxes.filter(b => b.box.presentation === 1)) {
@@ -425,6 +461,9 @@ test("published device launches companion, initialises and Snapshots a real libr
     try {
         assert.equal(await handlers.get("library")('"' + root + '"'), true, "first folder submission auto-starts without clicking Start");
         assert(events.some(e => e[0] === "status" && e[1].startsWith("Companion running.")), JSON.stringify(events));
+        assert.equal(activeClient.preview, null, "hidden startup does not scan files");
+        assert.equal(activeClient.projects.length, 0, "hidden startup does not enumerate projects");
+        await handlers.get("visible")(1);
         await handlers.get("init")();
         for (const [key, value] of [["user.name", "Device Test"], ["user.email", "device@example.invalid"], ["commit.gpgsign", "false"]]) {
             const result = spawnSync("git", ["-C", root, "config", key, value], { shell: false }); assert.equal(result.status, 0);
@@ -444,9 +483,23 @@ test("published device launches companion, initialises and Snapshots a real libr
         } : name === "./client" ? { ...packaged, Client: class extends packaged.Client { constructor(emit, transport, _port, libraryOnly) { super(emit, transport, testPort, libraryOnly); activeClient = this; } } } : name === "./preferences" ? testPreferences(root) : localRequire(name), packagePath, reloaded, {});
         assert.deepEqual(lastEvent(events, "libraryrestore"), ["libraryrestore", normalizeLibraryPath(root)]);
         assert.equal(await reloaded.exports.startup, true, "reloaded device auto-starts with remembered path without clicking Start");
+        assert.equal(activeClient.preview, null, "reload remains scan-free until visible");
+        await handlers.get("visible")(1);
         assert.deepEqual(lastEvent(events, "stopenabled"), ["stopenabled", 1]);
         assert.equal(lastEvent(events, "scopeselect"), undefined, "no scope control to restore");
         assert.deepEqual(lastEvent(events, "filesummary"), ["filesummary", "0 files will be committed."], "startup finishes the All projects scan without a Refresh click");
+        await handlers.get("visible")(0);
+        const hiddenCalls = [];
+        const actualTransport = activeClient.transport;
+        activeClient.transport = (...args) => { hiddenCalls.push(args[1]); return actualTransport(...args); };
+        fs.copyFileSync(path.join(project, "Dub.als"), path.join(project, "Changed while hidden.als"));
+        await activeClient.refresh(); await activeClient.refreshState();
+        await new Promise(resolve => setTimeout(resolve, 5500));
+        assert.deepEqual(hiddenCalls, [], "hidden device sends no project/state/preview scans from saves or polling");
+        await handlers.get("visible")(1);
+        assert(hiddenCalls.some(endpoint => endpoint.startsWith("/api/preview")), "showing the device scans immediately");
+        assert(activeClient.preview.files.some(file => file.path.endsWith("Changed while hidden.als")));
+        activeClient.transport = actualTransport;
 
         const oldToken = activeClient.token;
         assert.equal(await handlers.get("library")(path.join(root, "missing")), false, "invalid folder keeps the old companion running");
