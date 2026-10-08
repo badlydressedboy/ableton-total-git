@@ -67,6 +67,23 @@ obj("deviceready", "live.thisdevice", 8, 450);
 obj("startonce", "onebang 1", 280, 450);
 obj("startdefer", "deferlow", 550, 450);
 wire("deviceready", 0, "startonce"); wire("startonce", 0, "startdefer"); wire("startdefer", 0, "scriptstart");
+// Live persists its own Device.name independently of the patch/file title.
+// Resolve only this device after Live is ready, then bind its ID before writing.
+obj("namedefer", "deferlow", 8, 1140);
+obj("namepath", "live.path this_device", 280, 1140);
+obj("nameid", "route id", 550, 1140);
+obj("namevalid", "sel 0", 820, 1140);
+obj("namebind", "t b i", 8, 1180);
+obj("nameprefix", "prepend id", 280, 1180);
+obj("nameobject", "live.object", 550, 1180);
+obj("namewrite", "deferlow", 820, 1180);
+box("devicename", "message", 'set name "Ableton Total Git"', [1090, 1180, 190, 22]);
+wire("startonce", 0, "namedefer"); wire("namedefer", 0, "namepath");
+wire("namepath", 0, "nameid"); wire("nameid", 0, "namevalid");
+wire("namevalid", 1, "namebind"); wire("namebind", 1, "nameprefix");
+wire("nameprefix", 0, "nameobject", 1);
+wire("namebind", 0, "namewrite"); wire("namewrite", 0, "devicename");
+wire("devicename", 0, "nameobject");
 box("scriptstart", "message", "script start", [280, 500, 95, 22]); wire("scriptstart", 0, "node");
 box("visibilityprobe", "jsui", null, [0, 0, 930, 1], false, {
     filename: "visibility.js", presentation: 1, presentation_rect: [0, 0, 930, 1],

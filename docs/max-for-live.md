@@ -22,6 +22,8 @@ On macOS, install Git and Git LFS using your existing Git installer or Homebrew 
 
 The packages include **Ableton Total Git.amxd**. Keep it beside `device.js`, `client.js`, `preferences.js`, `platform.js`, `visibility.js`, `file-list.js` and `companion/`, then drag the device into Live. It opens in Presentation mode with Device Width 930. Keep it unfrozen so it can find the external companion. Re-add the device after replacing package files; an instance already loaded in a Set keeps its previous embedded patch.
 
+On load, the device sets its own Live title to **Ableton Total Git** through `live.path this_device` and the writable [Device.name property](https://docs.cycling74.com/apiref/lom/device/). Live's saved device name is separate from the Max window title and filename. An already loaded older instance needs re-adding; replacing files on disk cannot change its embedded patch.
+
 To install into your User Library, copy the complete package into `Presets/Audio Effects/Max Audio Effect/Imported` (or a dedicated subfolder there). Updating only JavaScript does not replace the controls embedded in an older `.amxd`.
 
 For source editing, open `Ableton Total Git.maxpat` in Max. `node max-for-live/build-device.js` creates the saved device from an unfrozen Audio Effect container saved by Max, retaining its container chunks and project metadata. The generated container is structurally checked; native rendering still needs verification by reloading it in Live.

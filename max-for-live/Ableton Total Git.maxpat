@@ -328,6 +328,123 @@
       },
       {
         "box": {
+          "id": "namedefer",
+          "maxclass": "newobj",
+          "patching_rect": [
+            8,
+            1140,
+            250,
+            22
+          ],
+          "text": "deferlow"
+        }
+      },
+      {
+        "box": {
+          "id": "namepath",
+          "maxclass": "newobj",
+          "patching_rect": [
+            280,
+            1140,
+            250,
+            22
+          ],
+          "text": "live.path this_device"
+        }
+      },
+      {
+        "box": {
+          "id": "nameid",
+          "maxclass": "newobj",
+          "patching_rect": [
+            550,
+            1140,
+            250,
+            22
+          ],
+          "text": "route id"
+        }
+      },
+      {
+        "box": {
+          "id": "namevalid",
+          "maxclass": "newobj",
+          "patching_rect": [
+            820,
+            1140,
+            250,
+            22
+          ],
+          "text": "sel 0"
+        }
+      },
+      {
+        "box": {
+          "id": "namebind",
+          "maxclass": "newobj",
+          "patching_rect": [
+            8,
+            1180,
+            250,
+            22
+          ],
+          "text": "t b i"
+        }
+      },
+      {
+        "box": {
+          "id": "nameprefix",
+          "maxclass": "newobj",
+          "patching_rect": [
+            280,
+            1180,
+            250,
+            22
+          ],
+          "text": "prepend id"
+        }
+      },
+      {
+        "box": {
+          "id": "nameobject",
+          "maxclass": "newobj",
+          "patching_rect": [
+            550,
+            1180,
+            250,
+            22
+          ],
+          "text": "live.object"
+        }
+      },
+      {
+        "box": {
+          "id": "namewrite",
+          "maxclass": "newobj",
+          "patching_rect": [
+            820,
+            1180,
+            250,
+            22
+          ],
+          "text": "deferlow"
+        }
+      },
+      {
+        "box": {
+          "id": "devicename",
+          "maxclass": "message",
+          "patching_rect": [
+            1090,
+            1180,
+            190,
+            22
+          ],
+          "text": "set name \"Ableton Total Git\""
+        }
+      },
+      {
+        "box": {
           "id": "scriptstart",
           "maxclass": "message",
           "patching_rect": [
@@ -872,7 +989,7 @@
           "maxclass": "message",
           "patching_rect": [
             85,
-            572,
+            626,
             100,
             22
           ],
@@ -930,7 +1047,7 @@
           "maxclass": "message",
           "patching_rect": [
             225,
-            590,
+            644,
             100,
             22
           ],
@@ -988,7 +1105,7 @@
           "maxclass": "message",
           "patching_rect": [
             365,
-            608,
+            662,
             100,
             22
           ],
@@ -1046,7 +1163,7 @@
           "maxclass": "message",
           "patching_rect": [
             365,
-            626,
+            680,
             100,
             22
           ],
@@ -1117,7 +1234,7 @@
           "maxclass": "message",
           "patching_rect": [
             450,
-            650,
+            704,
             100,
             22
           ],
@@ -1210,6 +1327,126 @@
           ],
           "destination": [
             "scriptstart",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "startonce",
+            0
+          ],
+          "destination": [
+            "namedefer",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "namedefer",
+            0
+          ],
+          "destination": [
+            "namepath",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "namepath",
+            0
+          ],
+          "destination": [
+            "nameid",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "nameid",
+            0
+          ],
+          "destination": [
+            "namevalid",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "namevalid",
+            1
+          ],
+          "destination": [
+            "namebind",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "namebind",
+            1
+          ],
+          "destination": [
+            "nameprefix",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "nameprefix",
+            0
+          ],
+          "destination": [
+            "nameobject",
+            1
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "namebind",
+            0
+          ],
+          "destination": [
+            "namewrite",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "namewrite",
+            0
+          ],
+          "destination": [
+            "devicename",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "devicename",
+            0
+          ],
+          "destination": [
+            "nameobject",
             0
           ]
         }
